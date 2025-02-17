@@ -8,11 +8,14 @@ export default function CreateNew() {
     const [error, setError] = useState<string | null>(null); // State to manage error messages
     const [writingStyle, setWritingStyle] = useState<string>(""); // State to manage the "Writing Style" field content
     const [analysisError, setAnalysisError] = useState<string | null>(null); // State to manage errors for the embedded form
+    const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
     // Handles submission of the main form
     const handleMainSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        setError(null); // Reset error state
+        setError(null);
+        setSubmitting(true);
 
         const formData = new FormData(event.currentTarget);
 
@@ -38,6 +41,8 @@ export default function CreateNew() {
         } catch (error) {
             console.error("Error submitting the form:", error);
             setError("An unexpected error occurred. Please try again.");
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -45,6 +50,7 @@ export default function CreateNew() {
     const handleAnalyzeSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setAnalysisError(null); // Reset error state for the embedded form
+        setLoading(true);
 
         const formData = new FormData(event.currentTarget);
 
@@ -69,6 +75,8 @@ export default function CreateNew() {
         } catch (error) {
             console.error("Error submitting the analyze form:", error);
             setAnalysisError("An unexpected error occurred. Please try again.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -138,9 +146,14 @@ export default function CreateNew() {
                     {/* Submit Button */}
                     <button
                         type="submit"
+                        disabled={loading || submitting}
                         className="w-48 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
-                        Create Project
+                        {submitting ? (
+                            <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                        ) : (
+                            "Create Project"
+                        )}
                     </button>
                 </form>
 
@@ -175,9 +188,14 @@ export default function CreateNew() {
                     {/* Submit Button for Analysis */}
                     <button
                         type="submit"
+                        disabled={loading || submitting}
                         className="w-48 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                     >
-                        Analyze Text Style
+                        {loading ? (
+                            <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                        ) : (
+                            "Analyze Text Style"
+                        )}
                     </button>
                 </form>
             </main>
