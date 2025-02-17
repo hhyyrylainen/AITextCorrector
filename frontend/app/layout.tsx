@@ -1,5 +1,6 @@
 import type {Metadata} from "next";
 import Image from "next/image";
+import Link from "next/link";
 import {Geist, Geist_Mono} from "next/font/google";
 import "./globals.css";
 
@@ -44,7 +45,7 @@ export default function RootLayout({
 
             {/* Footer */}
             <footer className="bg-gray-800 text-white py-4 gap-6 text-center flex justify-center">
-                <a
+                <Link
                     className="flex items-center gap-2 hover:underline hover:underline-offset-4"
                     href="/create"
                 >
@@ -56,8 +57,8 @@ export default function RootLayout({
                         height={16}
                     />
                     New
-                </a>
-                <a
+                </Link>
+                <Link
                     className="flex items-center gap-2 hover:underline hover:underline-offset-4"
                     href="/settings"
                 >
@@ -69,8 +70,8 @@ export default function RootLayout({
                         height={16}
                     />
                     Settings
-                </a>
-                <a
+                </Link>
+                <Link
                     className="flex items-center gap-2 hover:underline hover:underline-offset-4"
                     href="/"
                 >
@@ -82,7 +83,7 @@ export default function RootLayout({
                         height={16}
                     />
                     Projects
-                </a>
+                </Link>
             </footer>
         </div>
         </body>
