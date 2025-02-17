@@ -1,4 +1,19 @@
 ### GET request to ping to test server is up
 GET http://localhost:8000/api/ping
 
-###
+### Check available models
+GET http://localhost:8000/api/ai/models
+
+### Check loaded models
+GET http://localhost:8000/api/ai/loaded
+
+### Check version
+GET http://localhost:8000/api/ai/ollamaVersion
+
+### Test prompt
+POST http://localhost:8000/api/ai/chat/single
+Content-Type: application/json
+
+{
+  "prompt": "Please write a haiku about git merge conflicts"
+}
