@@ -81,14 +81,14 @@ def extract_epub_chapters(file_content: IO[bytes]) -> List[Chapter]:
     return result
 
 
-def chapters_to_plain_text(chapters, char_limit: int):
+def chapters_to_plain_text(chapters: List[Chapter], char_limit: int):
     extracted_text = ""
 
     current_char_count = 0
     chapter_counter = 0
 
     for chapter in chapters:
-        chapter_title = chapter["title"]
+        chapter_title = chapter.title
         title_lower = chapter_title.lower()
 
         if "chapter" not in title_lower:
@@ -99,12 +99,12 @@ def chapters_to_plain_text(chapters, char_limit: int):
 
         # Spacing before chapter title
         if len(extracted_text) > 0:
-            extracted_text += "\n\n"
+            extracted_text += "\n"
 
         extracted_text += title_with_separator
         current_char_count += len(title_with_separator)
 
-        for paragraph in chapter["paragraphs"]:
+        for paragraph in chapter.paragraphs:
 
             # Add the text to the output, while respecting the character limit
             if current_char_count + len(paragraph) > char_limit:
