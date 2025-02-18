@@ -8,6 +8,8 @@ from fastapi.staticfiles import StaticFiles
 
 from ai.ai_manager import AIManager
 from ai.ollama_client import OllamaClient
+from db.config import ConfigModel
+from db.database import database
 
 app = FastAPI()
 
@@ -21,6 +23,7 @@ app.mount("/_next", StaticFiles(directory=os.path.join(frontend_build_path, "_ne
 
 manager = AIManager()
 
+
 @app.get("/")
 async def serve_index():
     # Serve the index.html for the root route
@@ -32,6 +35,7 @@ async def serve_index():
 async def ping():
     return {"message": "pong"}
 
+
 # GUI endpoints
 @app.post("/api/textAnalysis")
 async def text_analysis(file: UploadFile):
@@ -41,18 +45,22 @@ async def text_analysis(file: UploadFile):
 
     return {"instructions": f"This is {content_type} with length {len(contents)}"}
 
+
 # General AI endpoints
 @app.get("/api/ai/models")
 async def get_models():
     return await asyncio.to_thread(OllamaClient().list_available_models)
 
+
 @app.get("/api/ai/loaded")
 async def get_models():
     return await asyncio.to_thread(OllamaClient().list_loaded)
 
+
 @app.get("/api/ai/ollamaVersion")
 async def get_models():
     return await asyncio.to_thread(OllamaClient().get_version)
+
 
 @app.post("/api/ai/chat/single")
 async def get_models(prompt: Dict):
@@ -61,7 +69,20 @@ async def get_models(prompt: Dict):
 
     response = await manager.prompt_chat(prompt["prompt"])
 
-    return {"response":  response}
+    return {"response": response}
+
+
+# Config management
+@app.get("/api/config")
+async def get_config():
+    return await database.get_config()
+
+
+@app.put("/api/config")
+async def update_config(new_config: ConfigModel):
+    await database.update_config(new_config)
+    print("Got new config: ", new_config)
+
 
 # Support for static file serving
 @app.get("/{path:path}")
