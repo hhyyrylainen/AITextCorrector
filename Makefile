@@ -28,9 +28,10 @@ ollama-pull-vanilla:
 ollama-run:
 	podman run -d --privileged --device /dev/kfd --device /dev/dri -v ollama:/root/.ollama -p 11434:11434 --name ollama --replace ollama/ollama:rocm
 
-ollama-interactive:
+ollama-interactive-small:
 	podman exec -it ollama ollama run deepseek-r1:14b
 
-# deepseek-r1:32b
+ollama-interactive:
+	podman exec -it ollama ollama run deepseek-r1:32b
 
-.PHONY: ollama-pull-rocm ollama-pull-vanilla ollama-run ollama-interactive
+.PHONY: ollama-pull-rocm ollama-pull-vanilla ollama-run ollama-interactive-small ollama-interactive
