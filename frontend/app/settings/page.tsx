@@ -6,9 +6,9 @@ const API_MODELS_URL = "/api/ai/models";
 const API_CONFIG_URL = "/api/config";
 
 type Config = {
-    selectedModel: string;
-    correctionReRuns: number;
-    autoSummaries: boolean;
+    selected_model: string;
+    correction_re_runs: number;
+    auto_summaries: boolean;
 };
 
 // Utility function to fetch and handle responses
@@ -23,9 +23,9 @@ async function fetchJSONData<T>(url: string, errorMessage: string): Promise<T> {
 export default function AppSettings() {
     const [aiModels, setAiModels] = useState<{ name: string }[]>([]); // List of AI models from the backend; defaults to an empty array
     const [config, setConfig] = useState<Config>({
-        selectedModel: "",
-        correctionReRuns: 0,
-        autoSummaries: false,
+        selected_model: "",
+        correction_re_runs: 0,
+        auto_summaries: false,
     }); // Current form settings
     const [initialConfig, setInitialConfig] = useState<Config>(config); // Store fetched config to reset
     const [loading, setLoading] = useState(true); // Track data loading state
@@ -133,7 +133,7 @@ export default function AppSettings() {
                             <select
                                 id="selectedModel"
                                 name="selectedModel"
-                                value={config.selectedModel}
+                                value={config.selected_model}
                                 onChange={handleChange}
                                 className="mt-1 p-2 block w-full border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             >
@@ -160,7 +160,7 @@ export default function AppSettings() {
                                 type="number"
                                 id="correctionReRuns"
                                 name="correctionReRuns"
-                                value={config.correctionReRuns}
+                                value={config.correction_re_runs}
                                 onChange={handleChange}
                                 className="mt-1 p-2 block w-full border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                 min={0}
@@ -173,7 +173,7 @@ export default function AppSettings() {
                                 type="checkbox"
                                 id="autoSummaries"
                                 name="autoSummaries"
-                                checked={config.autoSummaries}
+                                checked={config.auto_summaries}
                                 onChange={handleChange}
                                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                             />

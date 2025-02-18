@@ -158,9 +158,9 @@ class Database:
                 SET selectedModel = ?, correctionReRuns = ?, autoSummaries = ?
                 WHERE id = ?
             """, (
-                new_config.selectedModel,
-                new_config.correctionReRuns,
-                new_config.autoSummaries,
+                new_config.selected_model,
+                new_config.correction_re_runs,
+                new_config.auto_summaries,
                 1
             ))
 

@@ -2,7 +2,7 @@ import asyncio
 import os
 from typing import Dict
 
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -18,6 +18,8 @@ frontend_build_path = os.path.abspath("../frontend/build")
 
 # Mount the static path for CSS/JS files from the React build
 app.mount("/_next", StaticFiles(directory=os.path.join(frontend_build_path, "_next")), name="_next")
+
+
 # Serving root content like this will break everything
 # app.mount("/", StaticFiles(directory=frontend_build_path), name="")
 
@@ -38,6 +40,7 @@ async def add_no_cache_headers(request, call_next):
         response.headers["Expires"] = "0"
 
     return response
+
 
 manager = AIManager()
 
@@ -98,6 +101,15 @@ async def get_config():
 
 @app.put("/api/config")
 async def update_config(new_config: ConfigModel):
+    if len(new_config.selected_model) < 1:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "Validation Error",
+                "message": "Selected AI model is missing.",
+            },
+        )
+
     await database.update_config(new_config)
     print("Got new config: ", new_config)
 
