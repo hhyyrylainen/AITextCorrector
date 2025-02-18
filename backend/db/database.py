@@ -120,12 +120,9 @@ class Database:
             await db.commit()
             print("Database loaded")
 
-    async def get_config(self, user: str = "default") -> ConfigModel:
+    async def get_config(self) -> ConfigModel:
         """
         Fetch configuration for the given user asynchronously.
-
-        Args:
-            user (str): User identifier, defaults to "default".
 
         Returns:
             ConfigModel: Configuration details.
@@ -145,13 +142,12 @@ class Database:
                 print("WARNING: no configuration found, using default values")
                 return default_config
 
-    async def update_config(self, new_config: ConfigModel, user: str = "default"):
+    async def update_config(self, new_config: ConfigModel):
         """
         Update configuration for the given user asynchronously.
 
         Args:
             new_config (ConfigModel): New configuration to save.
-            user (str): User identifier, defaults to "default".
         """
         async with self._lock:  # Ensure thread safety
             db = self._connection
