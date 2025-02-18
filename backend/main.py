@@ -21,6 +21,24 @@ app.mount("/_next", StaticFiles(directory=os.path.join(frontend_build_path, "_ne
 # Serving root content like this will break everything
 # app.mount("/", StaticFiles(directory=frontend_build_path), name="")
 
+
+# Add middleware to modify headers
+@app.middleware("http")
+async def add_no_cache_headers(request, call_next):
+    response = await call_next(request)
+
+    # Apply no-cache headers only for non-static file requests
+    if "/_next/" not in request.url.path:
+        if "/api/" in request.url.path:
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        else:
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+
+    return response
+
 manager = AIManager()
 
 
