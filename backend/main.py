@@ -2,6 +2,7 @@ import asyncio
 import os
 from asyncio import Lock
 from typing import Dict, Optional
+import re
 
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.responses import FileResponse
@@ -11,7 +12,7 @@ from ai.ai_manager import AIManager
 from ai.ollama_client import OllamaClient
 from db.config import ConfigModel
 from db.database import database
-from utils.epub import extract_epub_chapters
+from utils.epub import extract_epub_chapters, chapters_to_plain_text
 
 app = FastAPI()
 
@@ -87,6 +88,18 @@ async def text_analysis(file: UploadFile):
     print("Instructions: ", instructions)
     return {"instructions": instructions}
 
+@app.post("/api/extractText")
+async def extract_text(file: UploadFile):
+    content_type = file.content_type
+
+    if content_type == "application/epub+zip":
+        return extract_epub_chapters(file.file)
+    elif content_type == "text/plain":
+        # Split on blank lines
+        sections = re.split(r'\n\s*\n', (await file.read()).decode("utf-8"))
+        return [{"title": "Plain text", "paragraphs": sections}]
+    else:
+        raise HTTPException(status_code=415, detail="Unsupported media type")
 
 # General AI endpoints
 @app.get("/api/ai/models")
