@@ -1,5 +1,7 @@
-import requests
 from typing import Dict, Any
+
+import requests
+
 
 # TODO: investigate if structured outputs or suffix would be nice
 
@@ -124,7 +126,7 @@ class OllamaClient:
             print(f"An error occurred while fetching the model metadata: {e}")
             return {"error": str(e)}
 
-    def list_available_models(self) -> Dict[str, Any]:
+    def list_available_models(self) -> list[Any]:
         """
         Retrieves a list of all available models from the Ollama API.
 
@@ -136,10 +138,15 @@ class OllamaClient:
         try:
             response = requests.get(url)
             response.raise_for_status()
-            return response.json()
+            raw_response = response.json()
+
+            models = raw_response["models"]
+
+            return sorted(models, key=lambda model: model["name"])
+
         except requests.RequestException as e:
             print(f"An error occurred while retrieving the model list: {e}")
-            return {"error": str(e)}
+            raise
 
     def list_loaded(self) -> Dict[str, Any]:
         """

@@ -70,7 +70,10 @@ async def text_analysis(file: UploadFile):
 # General AI endpoints
 @app.get("/api/ai/models")
 async def get_models():
-    return await asyncio.to_thread(OllamaClient().list_available_models)
+    try:
+        return await asyncio.to_thread(OllamaClient().list_available_models)
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.get("/api/ai/loaded")

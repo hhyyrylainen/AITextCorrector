@@ -140,8 +140,8 @@ export default function AppSettings() {
                                 <option value="" disabled>
                                     Select a model
                                 </option>
-                                {Array.isArray(aiModels) && aiModels.map((model) => (
-                                    <option key={model.name} value={model.name}>
+                                {Array.isArray(aiModels) && aiModels.map((model, index) => (
+                                    <option key={index} value={model.name}>
                                         {model.name}
                                     </option>
                                 ))}
