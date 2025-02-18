@@ -1,13 +1,14 @@
 from pydantic import BaseModel
 
 
+# We have to use camelCase here to be compatible with the frontend
 class ConfigModel(BaseModel):
-    selected_model: str
-    correction_re_runs: int
-    auto_summaries: bool
+    selectedModel: str
+    correctionReRuns: int
+    autoSummaries: bool
 
 
 default_config = ConfigModel(
-    selected_model="deepseek-r1:32b",
-    correction_re_runs=2,
-    auto_summaries=True)
+    selectedModel="deepseek-r1:32b",
+    correctionReRuns=2,
+    autoSummaries=True)

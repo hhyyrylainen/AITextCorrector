@@ -101,7 +101,7 @@ async def get_config():
 
 @app.put("/api/config")
 async def update_config(new_config: ConfigModel):
-    if len(new_config.selected_model) < 1:
+    if len(new_config.selectedModel) < 1:
         raise HTTPException(
             status_code=422,
             detail={

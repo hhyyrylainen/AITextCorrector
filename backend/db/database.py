@@ -99,9 +99,9 @@ class Database:
                     VALUES (1, ?, ?, ?, ?)
                 """, (
                     DATABASE_VERSION,
-                    default_config.selected_model,
-                    default_config.correction_re_runs,
-                    default_config.auto_summaries
+                    default_config.selectedModel,
+                    default_config.correctionReRuns,
+                    default_config.autoSummaries
                 ))
 
                 print("Initializing new database...")
@@ -134,9 +134,9 @@ class Database:
 
             if row:
                 # If configuration exists, return it
-                return ConfigModel(selected_model=row["selectedModel"],
-                                   correction_re_runs=row["correctionReRuns"],
-                                   auto_summaries=bool(row["autoSummaries"]))
+                return ConfigModel(selectedModel=row["selectedModel"],
+                                   correctionReRuns=row["correctionReRuns"],
+                                   autoSummaries=bool(row["autoSummaries"]))
             else:
                 # Return default values if no configuration exists
                 print("WARNING: no configuration found, using default values")
@@ -158,9 +158,9 @@ class Database:
                 SET selectedModel = ?, correctionReRuns = ?, autoSummaries = ?
                 WHERE id = ?
             """, (
-                new_config.selected_model,
-                new_config.correction_re_runs,
-                new_config.auto_summaries,
+                new_config.selectedModel,
+                new_config.correctionReRuns,
+                new_config.autoSummaries,
                 1
             ))
 
