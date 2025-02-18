@@ -2,6 +2,7 @@
 
 import React, {useState} from "react";
 import {useRouter} from "next/navigation";
+import Link from "next/link";
 
 export default function CreateNew() {
     const router = useRouter(); // Next.js router for redirection
@@ -198,6 +199,11 @@ export default function CreateNew() {
                         )}
                     </button>
                 </form>
+
+                <p>
+                    Test text extraction <Link href="/testExtraction" style={{color: "blue", textDecoration: "underline"}}>
+                    here</Link> to see if there's a problem.
+                </p>
             </main>
         </div>
     );
