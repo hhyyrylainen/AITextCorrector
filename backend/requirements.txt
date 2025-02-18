@@ -2,5 +2,6 @@ fastapi[all]>=0.115.8
 uvicorn
 requests
 pydantic
-sqlite3
 aiosqlite
+beautifulsoup4
+lxml

@@ -1,6 +1,7 @@
 import asyncio
 import os
-from typing import Dict
+from asyncio import Lock
+from typing import Dict, Optional
 
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.responses import FileResponse
@@ -10,6 +11,7 @@ from ai.ai_manager import AIManager
 from ai.ollama_client import OllamaClient
 from db.config import ConfigModel
 from db.database import database
+from utils.epub import extract_epub_chapters
 
 app = FastAPI()
 
@@ -19,9 +21,22 @@ frontend_build_path = os.path.abspath("../frontend/build")
 # Mount the static path for CSS/JS files from the React build
 app.mount("/_next", StaticFiles(directory=os.path.join(frontend_build_path, "_next")), name="_next")
 
-
 # Serving root content like this will break everything
 # app.mount("/", StaticFiles(directory=frontend_build_path), name="")
+
+# Singleton instance of AIManager
+_ai_manager_instance: Optional[AIManager] = None
+_ai_manager_lock = Lock()
+
+
+async def get_ai_manager():
+    global _ai_manager_instance
+    async with _ai_manager_lock:  # Only one coroutine can access this block at a time
+        if _ai_manager_instance is None:
+            _ai_manager_instance = AIManager()
+            _ai_manager_instance.model = (await database.get_config()).selectedModel
+            print("AI manager started. Model: ", _ai_manager_instance.model)
+    return _ai_manager_instance
 
 
 # Add middleware to modify headers
@@ -42,9 +57,6 @@ async def add_no_cache_headers(request, call_next):
     return response
 
 
-manager = AIManager()
-
-
 @app.get("/")
 async def serve_index():
     # Serve the index.html for the root route
@@ -62,9 +74,18 @@ async def ping():
 async def text_analysis(file: UploadFile):
     content_type = file.content_type
 
-    contents = await file.read()
+    if content_type == "application/epub+zip":
+        text = extract_epub_chapters(file.file, 100000)
+    elif content_type == "text/plain":
+        text = await file.read()
+    else:
+        raise HTTPException(status_code=415, detail="Unsupported media type")
 
-    return {"instructions": f"This is {content_type} with length {len(contents)}"}
+    raise Exception("not yet")
+    instructions = await (await get_ai_manager()).analyze_writing_style(text)
+
+    print("Instructions: ", instructions)
+    return {"instructions": instructions}
 
 
 # General AI endpoints
@@ -91,7 +112,7 @@ async def get_models(prompt: Dict):
     if "prompt" not in prompt or type(prompt["prompt"]) is not str:
         return {"error": "prompt required as JSON parameter"}
 
-    response = await manager.prompt_chat(prompt["prompt"])
+    response = await (await get_ai_manager()).prompt_chat(prompt["prompt"])
 
     return {"response": response}
 
