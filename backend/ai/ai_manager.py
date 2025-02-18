@@ -1,12 +1,23 @@
 from functools import partial
-from http.client import responses
+import re
 
-from anyio.abc import TaskStatus
-
-from backend.utils.job_queue import JobQueue
 from backend.utils.job import Job
-
+from backend.utils.job_queue import JobQueue
 from .ollama_client import OllamaClient
+
+ANALYZE_PROMPT = (
+    "Analyze the writing style of the provided text, focusing on key elements such as sentence structure, word choice, "
+    "tone, readability, and overall style. Provide a concise, one-paragraph summary of the writing style in the form "
+    "of instructions, as if advising someone on how to emulate this style. Avoid commenting on the content itself, "
+    "such as the author's expertise or the subject matter—it's only about the writing style.\n"
+    "\n"
+    "Example output: \"Write using [characteristic 1], [characteristic 2], and [characteristic 3]. "
+    "Employ [writing technique 1] and [writing technique 2] to [desired effect]. Maintain a [tone] tone throughout, "
+    "and aim for a readability score of [score].\"\n"
+    "\n"
+    "#TEXT\n"
+    "\n")
+
 
 class AIManager:
     """
@@ -21,16 +32,22 @@ class AIManager:
         self.model = model
         print("Changed active model to: ", model)
 
-    def prompt_chat(self, message) -> Job:
-        task = Job(partial(AIManager._prompt_chat, message, self.model))
+    def prompt_chat(self, message, remove_think=False) -> Job:
+        task = Job(partial(AIManager._prompt_chat, message, self.model, remove_think))
 
         self.job_queue.submit(task)
 
         return task
 
+    def analyze_writing_style(self, text) -> Job:
+        task = Job(partial(AIManager._prompt_chat, ANALYZE_PROMPT + text, self.model, True))
+
+        self.job_queue.submit(task)
+
+        return task
 
     @staticmethod
-    def _prompt_chat(message, model) -> str:
+    def _prompt_chat(message, model, remove_think=False) -> str:
         client = OllamaClient()
 
         response = client.submit_chat_message(model, message)
@@ -41,4 +58,10 @@ class AIManager:
         # Convert nanoseconds to seconds
         print("Ollama API took: ", response["total_duration"] / 1_000_000_000)
 
-        return response["message"]["content"]
+        content = response["message"]["content"]
+
+        if remove_think and content.startswith("<think>"):
+            # Remove everything between <think></think> tags
+            content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
+
+        return content.strip()

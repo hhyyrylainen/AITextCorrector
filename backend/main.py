@@ -14,6 +14,13 @@ from db.config import ConfigModel
 from db.database import database
 from utils.epub import extract_epub_chapters, chapters_to_plain_text
 
+# Depends on model context / how big the model is that how much text it can take before it writes something not about
+# the prompt
+# MAX_TEXT_STYLE_EXCERPT_LENGTH = 50000
+MAX_TEXT_STYLE_EXCERPT_LENGTH = 6200
+# MAX_TEXT_STYLE_EXCERPT_LENGTH = 5000
+
+# FastAPI web app setup
 app = FastAPI()
 
 # Path to the exported static files from Next.js
@@ -76,17 +83,18 @@ async def text_analysis(file: UploadFile):
     content_type = file.content_type
 
     if content_type == "application/epub+zip":
-        text = extract_epub_chapters(file.file, 100000)
+        chapters = extract_epub_chapters(file.file)
+        text = chapters_to_plain_text(chapters, MAX_TEXT_STYLE_EXCERPT_LENGTH)
     elif content_type == "text/plain":
-        text = await file.read()
+        text = (await file.read()).decode("utf-8")
+        text = text[:MAX_TEXT_STYLE_EXCERPT_LENGTH]
     else:
         raise HTTPException(status_code=415, detail="Unsupported media type")
 
-    raise Exception("not yet")
     instructions = await (await get_ai_manager()).analyze_writing_style(text)
 
-    print("Instructions: ", instructions)
     return {"instructions": instructions}
+
 
 @app.post("/api/extractText")
 async def extract_text(file: UploadFile):
@@ -100,6 +108,7 @@ async def extract_text(file: UploadFile):
         return [{"title": "Plain text", "paragraphs": sections}]
     else:
         raise HTTPException(status_code=415, detail="Unsupported media type")
+
 
 # General AI endpoints
 @app.get("/api/ai/models")
