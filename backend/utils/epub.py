@@ -1,13 +1,18 @@
 import zipfile
-from typing import IO, List, Dict, Any
+from typing import IO, List, Dict
 
 from pydantic import BaseModel
 from bs4 import BeautifulSoup
 
 
+class Paragraph(BaseModel):
+    text: str
+    index: int
+
+
 class Chapter(BaseModel):
     title: str
-    paragraphs: List[str]
+    paragraphs: List[Paragraph]
 
 
 def extract_epub_chapters(file_content: IO[bytes]) -> List[Chapter]:
@@ -60,6 +65,7 @@ def extract_epub_chapters(file_content: IO[bytes]) -> List[Chapter]:
                         continue  # If no <body> tag is found, move to the next chapter
 
                     paragraph_result = []
+                    paragraph_counter = 1
 
                     # Body text extraction
                     paragraphs = body.find_all('p')  # Get paragraphs (<p> tags)
@@ -73,7 +79,8 @@ def extract_epub_chapters(file_content: IO[bytes]) -> List[Chapter]:
                                 ('note:', 'remark:', 'skip:', 'footer:')):
                             continue
 
-                        paragraph_result.append(paragraph_text)
+                        paragraph_result.append(Paragraph(text=paragraph_text, index=paragraph_counter))
+                        paragraph_counter += 1
 
                     chapter = Chapter(title=chapter_title, paragraphs=paragraph_result)
                     result.append(chapter)
@@ -107,15 +114,17 @@ def chapters_to_plain_text(chapters: List[Chapter], char_limit: int):
         for paragraph in chapter.paragraphs:
 
             # Add the text to the output, while respecting the character limit
-            if current_char_count + len(paragraph) > char_limit:
+            # TODO: maybe a mode where only full paragraphs are allowed to be cut?
+            if current_char_count + len(paragraph.text) > char_limit:
                 remaining_chars = char_limit - current_char_count
-                extracted_text += paragraph[:remaining_chars]
+                extracted_text += paragraph.text[:remaining_chars]
                 return extracted_text  # Stop future processing at the limit
 
             extracted_text += paragraph + "\n\n"  # Add double newline for paragraph break
-            current_char_count += len(paragraph)
+            current_char_count += len(paragraph.text)
 
     return extracted_text
+
 
 ## Internal helper functions
 

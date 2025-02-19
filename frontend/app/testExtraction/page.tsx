@@ -2,9 +2,14 @@
 
 import React, {useState} from "react";
 
+type Paragraph = {
+    index: number;
+    text: string;
+};
+
 type Chapter = {
     title: string;
-    paragraphs: string[];
+    paragraphs: Paragraph[];
 };
 
 
@@ -109,8 +114,11 @@ export default function CreateNew() {
                                 <h2 className="text-2xl font-bold text-gray-800">{chapter.title}</h2>
 
                                 {/* Chapter Paragraphs */}
-                                {chapter.paragraphs.map((paragraph, index) => (
-                                    <p key={index} className="text-gray-600 leading-relaxed">{paragraph}</p>
+                                {chapter.paragraphs.map((paragraph) => (
+                                    <p key={paragraph.index} className="text-gray-600 leading-relaxed">
+                                        <span className="text-gray-400 text-sm pe-1">{paragraph.index}.</span>
+                                        {paragraph.text}
+                                    </p>
                                 ))}
                             </div>
                         ))}
