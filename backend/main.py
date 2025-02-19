@@ -1,8 +1,8 @@
 import asyncio
 import os
+import re
 from asyncio import Lock
 from typing import Dict, Optional
-import re
 
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.responses import FileResponse
@@ -13,6 +13,10 @@ from ai.ollama_client import OllamaClient
 from db.config import ConfigModel
 from db.database import database
 from utils.epub import extract_epub_chapters, chapters_to_plain_text
+
+# TODO: should make the excerpt length configurable as well as how many paragraphs are translated at once
+# TODO: should add a button to pull the most useful models that can be triggered from the GUI (should only allow
+#  pressing that once per program run to avoid spamming if someone clicks the GUI repeatedly)
 
 # Depends on model context / how big the model is that how much text it can take before it writes something not about
 # the prompt
@@ -157,6 +161,12 @@ async def update_config(new_config: ConfigModel):
         )
 
     await database.update_config(new_config)
+
+    ai_manager = await get_ai_manager()
+
+    # Need to apply it to the AI manager instance
+    ai_manager.model = new_config.selectedModel
+
     print("Got new config: ", new_config)
 
 
