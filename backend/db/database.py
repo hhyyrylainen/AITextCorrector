@@ -5,6 +5,7 @@ from collections.abc import Awaitable
 from pathlib import Path
 from typing import Dict, Any
 import platform
+import time
 
 import aiosqlite
 
@@ -47,6 +48,10 @@ def get_db_path() -> Path:
 class Database:
     _instance = None  # Singleton instance
     _lock: Lock = Lock()  # Thread-safe lock for async operations
+
+    _config_cache = None  # Cached configuration data
+    _config_cache_timestamp = None  # Timestamp of when the cache was last updated
+    _CACHE_TTL = 5  # Time to live for cache (in seconds)
 
     def __new__(cls, *args, **kwargs):
         """Ensure only one instance of the Database class exists."""
@@ -122,25 +127,41 @@ class Database:
 
     async def get_config(self) -> ConfigModel:
         """
-        Fetch configuration for the given user asynchronously.
+        Fetch configuration asynchronously, using a cached copy if valid.
 
         Returns:
             ConfigModel: Configuration details.
         """
         async with self._lock:  # Ensure thread safety
+            current_time = time.time()
+
+            # Check if cache is valid
+            if (
+                    self._config_cache is not None and
+                    self._config_cache_timestamp is not None and
+                    (current_time - self._config_cache_timestamp) < self._CACHE_TTL
+            ):
+                # Return the cached copy if it's still valid
+                return self._config_cache
+
             db = self._connection
             async with db.execute("SELECT * FROM config WHERE id = 1") as cursor:
                 row = await cursor.fetchone()
 
             if row:
-                # If configuration exists, return it
-                return ConfigModel(selectedModel=row["selectedModel"],
+                config = ConfigModel(selectedModel=row["selectedModel"],
                                    correctionReRuns=row["correctionReRuns"],
                                    autoSummaries=bool(row["autoSummaries"]))
             else:
                 # Return default values if no configuration exists
                 print("WARNING: no configuration found, using default values")
-                return default_config
+                config = default_config
+
+            # Update the cache with new data and current timestamp
+            self._config_cache = config
+            self._config_cache_timestamp = current_time
+
+            return config
 
     async def update_config(self, new_config: ConfigModel):
         """
