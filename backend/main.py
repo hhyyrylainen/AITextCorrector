@@ -43,11 +43,21 @@ _ai_manager_lock = Lock()
 
 async def get_ai_manager():
     global _ai_manager_instance
+
+    # Get latest config to ensure AI manager can be made up to date
+    latest_config = await database.get_config()
+
     async with _ai_manager_lock:  # Only one coroutine can access this block at a time
         if _ai_manager_instance is None:
             _ai_manager_instance = AIManager()
-            _ai_manager_instance.model = (await database.get_config()).selectedModel
+            _ai_manager_instance.model = latest_config.selectedModel
             print("AI manager started. Model: ", _ai_manager_instance.model)
+
+        if _ai_manager_instance.model != latest_config.selectedModel:
+            print("AI manager model changed. Old model: ", _ai_manager_instance.model, "New model: ",
+                  latest_config.selectedModel)
+            _ai_manager_instance.model = latest_config.selectedModel
+
     return _ai_manager_instance
 
 
@@ -161,11 +171,6 @@ async def update_config(new_config: ConfigModel):
         )
 
     await database.update_config(new_config)
-
-    ai_manager = await get_ai_manager()
-
-    # Need to apply it to the AI manager instance
-    ai_manager.model = new_config.selectedModel
 
     print("Got new config: ", new_config)
 

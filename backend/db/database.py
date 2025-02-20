@@ -187,6 +187,9 @@ class Database:
 
             await db.commit()  # Save the changes
 
+            # Immediately make new config available through the cache
+            self._config_cache = new_config
+
 
 # Singleton instance of the database
 database = Database()
