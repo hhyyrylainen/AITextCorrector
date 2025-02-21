@@ -9,6 +9,9 @@ type Config = {
     selectedModel: string;
     correctionReRuns: number;
     autoSummaries: boolean;
+    styleExcerptLength: number;
+    simultaneousCorrectionSize: number;
+    unusedAIUnloadDelay: number;
 };
 
 // Utility function to fetch and handle responses
@@ -26,6 +29,9 @@ export default function AppSettings() {
         selectedModel: "",
         correctionReRuns: 0,
         autoSummaries: false,
+        styleExcerptLength: 5000,
+        simultaneousCorrectionSize: 200,
+        unusedAIUnloadDelay: 300,
     }); // Current form settings
     const [initialConfig, setInitialConfig] = useState<Config>(config); // Store fetched config to reset
     const [loading, setLoading] = useState(true); // Track data loading state
@@ -210,6 +216,47 @@ export default function AppSettings() {
                                 Automatically Create Chapter Summaries
                             </label>
                         </div>
+
+                        {/* Config version 2 added fields */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                                Style Excerpt Length
+                            </label>
+                            <input
+                                type="number"
+                                name="styleExcerptLength"
+                                value={config.styleExcerptLength}
+                                onChange={handleChange}
+                                className="mt-1 p-2 block w-full border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                                Simultaneous Corrections Character Count
+                            </label>
+                            <input
+                                type="number"
+                                name="simultaneousCorrectionSize"
+                                value={config.simultaneousCorrectionSize}
+                                onChange={handleChange}
+                                className="mt-1 p-2 block w-full border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                                Unused AI Unload Delay (seconds)
+                            </label>
+                            <input
+                                type="number"
+                                name="unusedAIUnloadDelay"
+                                value={config.unusedAIUnloadDelay}
+                                onChange={handleChange}
+                                className="mt-1 p-2 block w-full border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            />
+                        </div>
+
 
                         {/* Action Buttons */}
                         <div className="flex gap-4">
