@@ -32,7 +32,7 @@ export default function AIThinking() {
   }
 
   return (
-    <div className="flex items-center justify-center space-x-2 text-gray-700">
+    <div className="flex items-center justify-center space-x-2 text-white">
       <p className="text-sm font-medium">AI is processing</p>
       {/* Tailwind spinner */}
       <div className="inline-block w-4 h-4 border-2 border-t-2 border-gray-300 rounded-full animate-spin border-t-blue-500"></div>
