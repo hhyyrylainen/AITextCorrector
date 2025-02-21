@@ -227,6 +227,7 @@ export default function AppSettings() {
                                 name="styleExcerptLength"
                                 value={config.styleExcerptLength}
                                 onChange={handleChange}
+                                step={100}
                                 className="mt-1 p-2 block w-full border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             />
                         </div>
@@ -240,6 +241,7 @@ export default function AppSettings() {
                                 name="simultaneousCorrectionSize"
                                 value={config.simultaneousCorrectionSize}
                                 onChange={handleChange}
+                                step={50}
                                 className="mt-1 p-2 block w-full border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             />
                         </div>
@@ -253,6 +255,7 @@ export default function AppSettings() {
                                 name="unusedAIUnloadDelay"
                                 value={config.unusedAIUnloadDelay}
                                 onChange={handleChange}
+                                step={5}
                                 className="mt-1 p-2 block w-full border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                             />
                         </div>
