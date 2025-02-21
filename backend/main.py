@@ -14,16 +14,6 @@ from db.config import ConfigModel
 from db.database import database
 from utils.epub import extract_epub_chapters, chapters_to_plain_text
 
-# TODO: should make the excerpt length configurable as well as how many paragraphs are translated at once
-# TODO: should add a button to pull the most useful models that can be triggered from the GUI (should only allow
-#  pressing that once per program run to avoid spamming if someone clicks the GUI repeatedly)
-
-# Depends on model context / how big the model is that how much text it can take before it writes something not about
-# the prompt
-# MAX_TEXT_STYLE_EXCERPT_LENGTH = 50000
-MAX_TEXT_STYLE_EXCERPT_LENGTH = 6200
-# MAX_TEXT_STYLE_EXCERPT_LENGTH = 5000
-
 # FastAPI web app setup
 app = FastAPI()
 
@@ -98,12 +88,14 @@ async def ping():
 async def text_analysis(file: UploadFile):
     content_type = file.content_type
 
+    excerpt_length = (await database.get_config()).textAnalysisExcerptLength
+
     if content_type == "application/epub+zip":
         chapters = extract_epub_chapters(file.file)
-        text = chapters_to_plain_text(chapters, MAX_TEXT_STYLE_EXCERPT_LENGTH)
+        text = chapters_to_plain_text(chapters, excerpt_length)
     elif content_type == "text/plain":
         text = (await file.read()).decode("utf-8")
-        text = text[:MAX_TEXT_STYLE_EXCERPT_LENGTH]
+        text = text[:excerpt_length]
     else:
         raise HTTPException(status_code=415, detail="Unsupported media type")
 
