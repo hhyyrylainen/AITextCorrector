@@ -150,7 +150,12 @@ async def get_models(prompt: Dict):
     if "prompt" not in prompt or type(prompt["prompt"]) is not str:
         return {"error": "prompt required as JSON parameter"}
 
-    response = await (await get_ai_manager()).prompt_chat(prompt["prompt"])
+    remove_think = True
+
+    if "removeThink" in prompt and prompt["removeThink"] == False:
+        remove_think = False
+
+    response = await (await get_ai_manager()).prompt_chat(prompt["prompt"], remove_think)
 
     return {"response": response}
 
