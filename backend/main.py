@@ -124,6 +124,12 @@ async def extract_text(file: UploadFile):
         raise HTTPException(status_code=415, detail="Unsupported media type")
 
 
+@app.get("/api/ai/status")
+async def get_models():
+    ai_manager = await get_ai_manager()
+
+    return {"thinking": ai_manager.currently_running, "queueLength": ai_manager.queue_length, "model": ai_manager.model}
+
 # General AI endpoints
 @app.get("/api/ai/models")
 async def get_models():

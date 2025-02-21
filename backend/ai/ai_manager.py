@@ -25,6 +25,7 @@ class AIManager:
     """
 
     def __init__(self):
+        self.currently_running = False
         self.model = "deepseek-r1:32b"
         self.job_queue = JobQueue()
 
@@ -33,24 +34,29 @@ class AIManager:
         print("Changed active model to: ", model)
 
     def prompt_chat(self, message, remove_think=False) -> Job:
-        task = Job(partial(AIManager._prompt_chat, message, self.model, remove_think))
+        task = Job(partial(self._prompt_chat, message, self.model, remove_think))
 
         self.job_queue.submit(task)
 
         return task
 
     def analyze_writing_style(self, text) -> Job:
-        task = Job(partial(AIManager._prompt_chat, ANALYZE_PROMPT + text, self.model, True))
+        task = Job(partial(self._prompt_chat, ANALYZE_PROMPT + text, self.model, True))
 
         self.job_queue.submit(task)
 
         return task
 
-    @staticmethod
-    def _prompt_chat(message, model, remove_think=False) -> str:
+    @property
+    def queue_length(self):
+        return self.job_queue.task_queue.qsize()
+
+    def _prompt_chat(self, message, model, remove_think=False) -> str:
+        self.currently_running = True
         client = OllamaClient()
 
         response = client.submit_chat_message(model, message)
+        self.currently_running = False
 
         if "error" in response:
             raise Exception(f"Ollama API error: {response['error']}")
