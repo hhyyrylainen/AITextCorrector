@@ -32,6 +32,12 @@ export default function AppSettings() {
     const [saving, setSaving] = useState(false); // Track save button state
     const [error, setError] = useState<string | null>(null); // Error message state
 
+    // New state variables for downloading recommended models
+    const [downloading, setDownloading] = useState(false); // Track the download button state
+    const [downloadPerformed, setDownloadPerformed] = useState(false);
+    const [downloadError, setDownloadError] = useState<string | null>(null); // Error or status related to downloading
+
+
     // Fetch available models and existing configuration
     useEffect(() => {
         const fetchData = async () => {
@@ -107,6 +113,26 @@ export default function AppSettings() {
     const handleCancel = () => {
         setConfig(initialConfig);
         setError(null);
+    };
+
+    const downloadRecommended = async () => {
+        setDownloading(true);
+        try {
+            const response = await fetch("/api/ai/downloadRecommended", {method: "POST"});
+
+            if (!response.ok) {
+                setDownloadError("An error occurred while requesting model download. Please try again.");
+                return;
+            }
+
+            setDownloadError("Recommended models are being downloaded. Please refresh in a few minutes.");
+            setDownloadPerformed(true);
+        } catch (err) {
+            console.error(err);
+            setDownloadError("An error occurred while requesting model download. Please try again.");
+        } finally {
+            setDownloading(false);
+        }
     };
 
     return (
@@ -206,6 +232,24 @@ export default function AppSettings() {
                         </div>
                     </form>
                 )}
+
+                <br/>
+
+                {downloadError && (
+                    <div className="p-3 rounded-md">
+                        {downloadError}
+                    </div>
+                )}
+
+                {/* Download Recommended Models */}
+                <button
+                    type="button"
+                    onClick={downloadRecommended}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md shadow-sm hover:bg-gray-200 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none"
+                    disabled={downloading || downloadPerformed}
+                >
+                    Download Recommended Models
+                </button>
             </main>
         </div>
     );

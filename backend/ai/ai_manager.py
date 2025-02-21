@@ -3,6 +3,7 @@ import re
 
 from backend.utils.job import Job
 from backend.utils.job_queue import JobQueue
+from backend.db.config import DEFAULT_MODEL
 from .ollama_client import OllamaClient
 
 ANALYZE_PROMPT = (
@@ -17,6 +18,8 @@ ANALYZE_PROMPT = (
     "\n"
     "#TEXT\n"
     "\n")
+
+EXTRA_RECOMMENDED_MODELS = ["deepseek-r1:14b"]
 
 
 class AIManager:
@@ -47,6 +50,16 @@ class AIManager:
 
         return task
 
+    def download_recommended(self):
+        all_models = [DEFAULT_MODEL] + EXTRA_RECOMMENDED_MODELS
+
+        for model in all_models:
+            print("Will download model: ", model)
+
+            task = Job(partial(self._download_model, model))
+
+            self.job_queue.submit(task)
+
     @property
     def queue_length(self):
         return self.job_queue.task_queue.qsize()
@@ -71,3 +84,11 @@ class AIManager:
             content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
 
         return content.strip()
+
+    def _download_model(self, model):
+        self.currently_running = True
+        client = OllamaClient()
+        if client.download_model(model):
+            print("Downloaded model: ", model)
+
+        self.currently_running = False

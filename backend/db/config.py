@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+DEFAULT_MODEL = "deepseek-r1:32b"
 
 # We have to use camelCase here to be compatible with the frontend
 class ConfigModel(BaseModel):
@@ -9,6 +10,6 @@ class ConfigModel(BaseModel):
 
 
 default_config = ConfigModel(
-    selectedModel="deepseek-r1:32b",
+    selectedModel=DEFAULT_MODEL,
     correctionReRuns=2,
     autoSummaries=True)

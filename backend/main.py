@@ -36,6 +36,8 @@ app.mount("/_next", StaticFiles(directory=os.path.join(frontend_build_path, "_ne
 # Serving root content like this will break everything
 # app.mount("/", StaticFiles(directory=frontend_build_path), name="")
 
+downloaded_recommended = False
+
 # Singleton instance of AIManager
 _ai_manager_instance: Optional[AIManager] = None
 _ai_manager_lock = Lock()
@@ -130,6 +132,7 @@ async def get_models():
 
     return {"thinking": ai_manager.currently_running, "queueLength": ai_manager.queue_length, "model": ai_manager.model}
 
+
 # General AI endpoints
 @app.get("/api/ai/models")
 async def get_models():
@@ -157,6 +160,19 @@ async def get_models(prompt: Dict):
     response = await (await get_ai_manager()).prompt_chat(prompt["prompt"])
 
     return {"response": response}
+
+
+@app.post("/api/ai/downloadRecommended")
+async def get_models():
+    global downloaded_recommended
+    if downloaded_recommended:
+        return {"error": "recommended models already downloaded"}
+    downloaded_recommended = True
+
+    print("Starting download of recommended models... This may take a while. Please wait.")
+    (await get_ai_manager()).download_recommended()
+
+    return {"message": "recommended models download started"}
 
 
 # Config management

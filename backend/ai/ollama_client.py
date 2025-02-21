@@ -182,3 +182,26 @@ class OllamaClient:
         except requests.RequestException as e:
             print(f"An error occurred while retrieving the version: {e}")
             return "Error retrieving version"
+
+    def download_model(self, model) -> bool:
+        """
+        Pulls a model for the Ollama API.
+
+        :param model: name of the model to pull
+        :return: true if the model was successfully pulled, false otherwise
+        """
+        url = f"{self.base_url}/api/pull"
+        payload = {
+            "model": model,
+            "stream": False  # Non-streaming response
+        }
+
+        try:
+            response = requests.post(url, json=payload)
+            print(response.content().decode("utf-8"))
+            response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
+            return response.json()["status"] == "success"  # Return the parsed JSON response
+        except requests.RequestException as e:
+            print(f"An error occurred while interacting with the ollama pull endpoint: {e}")
+            print("Failed to pull model: ", model)
+            return False
