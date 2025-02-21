@@ -2,6 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 
+// Configures backend polling time for refresh of this component
+const refreshInterval = 2000;
+
 export default function AIThinking() {
   const [isThinking, setIsThinking] = useState(false);
 
@@ -22,7 +25,7 @@ export default function AIThinking() {
   useEffect(() => {
     // Fetch the initial status and set up a polling interval
     fetchAIStatus();
-    const intervalId = setInterval(fetchAIStatus, 1000); // Poll every 1 second
+    const intervalId = setInterval(fetchAIStatus, refreshInterval);
 
     return () => clearInterval(intervalId); // Cleanup interval on unmount
   }, []);
