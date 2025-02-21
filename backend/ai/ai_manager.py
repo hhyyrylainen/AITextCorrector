@@ -28,6 +28,7 @@ class AIManager:
     """
 
     def __init__(self):
+        self.unload_delay = 300
         self.currently_running = False
         self.model = "deepseek-r1:32b"
         self.job_queue = JobQueue()
@@ -66,7 +67,7 @@ class AIManager:
 
     def _prompt_chat(self, message, model, remove_think=False) -> str:
         self.currently_running = True
-        client = OllamaClient()
+        client = OllamaClient(unload_delay=self.unload_delay)
 
         response = client.submit_chat_message(model, message)
         self.currently_running = False

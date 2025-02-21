@@ -10,14 +10,16 @@ class OllamaClient:
     A client for interacting with the local Ollama API.
     """
 
-    def __init__(self, base_url: str = "http://localhost:11434"):
+    def __init__(self, base_url: str = "http://localhost:11434", unload_delay=None):
         """
         Initialize the OllamaClient with the base URL for the Ollama API.
         
         Args:
             base_url (str): The base URL of the local Ollama API.
+            :param unload_delay: None or time in seconds to wait before unloading a model
         """
         self.base_url = base_url
+        self.unload_delay = unload_delay
 
     def submit_chat_message(self, model: str, message: str) -> Dict[str, Any]:
         """
@@ -36,6 +38,8 @@ class OllamaClient:
             "messages": [{"role": "user", "content": message}],
             "stream": False,
         }
+
+        self._add_keep_alive(payload)
 
         try:
             response = requests.post(url, json=payload)
@@ -71,6 +75,8 @@ class OllamaClient:
             "stream": False,
         }
 
+        self._add_keep_alive(payload)
+
         try:
             response = requests.post(url, json=payload)
             response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
@@ -97,6 +103,8 @@ class OllamaClient:
             "prompt": prompt,
             "stream": False  # Non-streaming response
         }
+
+        self._add_keep_alive(payload)
 
         try:
             response = requests.post(url, json=payload)
@@ -205,3 +213,7 @@ class OllamaClient:
             print(f"An error occurred while interacting with the ollama pull endpoint: {e}")
             print("Failed to pull model: ", model)
             return False
+
+    def _add_keep_alive(self, payload: Dict[str, Any]):
+        if self.unload_delay is not None:
+            payload["keep_alive"] = f"{self.unload_delay}s"

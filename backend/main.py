@@ -49,6 +49,7 @@ async def get_ai_manager():
             print("AI manager model changed. Old model: ", _ai_manager_instance.model, "New model: ",
                   latest_config.selectedModel)
             _ai_manager_instance.model = latest_config.selectedModel
+        _ai_manager_instance.unload_delay = latest_config.unusedAIUnloadDelay
 
     return _ai_manager_instance
 
