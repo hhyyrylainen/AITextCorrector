@@ -1,17 +1,15 @@
 import asyncio
 import os
-from asyncio import Lock
-from collections.abc import Awaitable
-from pathlib import Path
-from typing import Dict, Any
 import platform
 import time
+from asyncio import Lock
+from pathlib import Path
 
 import aiosqlite
 
 from .config import ConfigModel, default_config
 
-DATABASE_VERSION = 1
+DATABASE_VERSION = 2
 
 
 def get_db_path() -> Path:
@@ -89,7 +87,10 @@ class Database:
                     version INTEGER NOT NULL,
                     selectedModel TEXT NOT NULL,
                     correctionReRuns INTEGER NOT NULL DEFAULT 0,
-                    autoSummaries BOOLEAN NOT NULL DEFAULT 0
+                    autoSummaries BOOLEAN NOT NULL DEFAULT 0,
+                    styleExcerptLength INTEGER NOT NULL DEFAULT 1000,
+                    simultaneousCorrectionSize INTEGER NOT NULL DEFAULT 200,
+                    unusedAIUnloadDelay INTEGER NOT NULL DEFAULT 120
                 );
             """)
             await db.commit()
@@ -111,16 +112,23 @@ class Database:
 
                 print("Initializing new database...")
             else:
-                # Ensure database is migrated to the latest version
-                if existing_config["version"] < DATABASE_VERSION:
-                    # TODO: implement migrations
+                config = dict(existing_config)
+                if existing_config["version"] > DATABASE_VERSION:
                     raise Exception(
-                        f"Database migration required (current version: {existing_config['version']}, expected version: {DATABASE_VERSION})")
+                        f"Database version is newer than expected (current version: {config['version']}, "
+                        f"expected version: {DATABASE_VERSION}). Please update the application to the latest version!")
 
-                    await db.execute("""
-                        UPDATE config
-                        SET version = ?
-                    """, (DATABASE_VERSION,))
+                await db.execute("BEGIN TRANSACTION;")
+
+                config["version"] = int(config["version"])
+
+                # Ensure database is migrated to the latest version
+                while config["version"] < DATABASE_VERSION:
+                    # TODO: implement migrations
+                    print(
+                        f"Database migration required (current version: {config['version']}, expected version: {DATABASE_VERSION})")
+
+                    await self._migrate_database(db, config)
 
             await db.commit()
             print("Database loaded")
@@ -150,8 +158,11 @@ class Database:
 
             if row:
                 config = ConfigModel(selectedModel=row["selectedModel"],
-                                   correctionReRuns=row["correctionReRuns"],
-                                   autoSummaries=bool(row["autoSummaries"]))
+                                     correctionReRuns=row["correctionReRuns"],
+                                     autoSummaries=bool(row["autoSummaries"]),
+                                     styleExcerptLength=row["styleExcerptLength"],
+                                     simultaneousCorrectionSize=row["simultaneousCorrectionSize"],
+                                     unusedAIUnloadDelay=row["unusedAIUnloadDelay"])
             else:
                 # Return default values if no configuration exists
                 print("WARNING: no configuration found, using default values")
@@ -176,12 +187,16 @@ class Database:
             # Update existing configuration
             await db.execute("""
                 UPDATE config
-                SET selectedModel = ?, correctionReRuns = ?, autoSummaries = ?
+                SET selectedModel = ?, correctionReRuns = ?, autoSummaries = ?, styleExcerptLength = ?, 
+                simultaneousCorrectionSize = ?, unusedAIUnloadDelay = ?
                 WHERE id = ?
             """, (
                 new_config.selectedModel,
                 new_config.correctionReRuns,
                 new_config.autoSummaries,
+                new_config.styleExcerptLength,
+                new_config.simultaneousCorrectionSize,
+                new_config.unusedAIUnloadDelay,
                 1
             ))
 
@@ -189,6 +204,24 @@ class Database:
 
             # Immediately make new config available through the cache
             self._config_cache = new_config
+
+    async def _migrate_database(self, db, existing_config):
+        if existing_config["version"] == 1:
+            await db.execute(
+                f"ALTER TABLE config ADD COLUMN styleExcerptLength INTEGER NOT NULL DEFAULT {default_config.styleExcerptLength}")
+            await db.execute(
+                f"ALTER TABLE config ADD COLUMN simultaneousCorrectionSize INTEGER NOT NULL DEFAULT {default_config.simultaneousCorrectionSize}")
+            await db.execute(
+                f"ALTER TABLE config ADD COLUMN unusedAIUnloadDelay INTEGER NOT NULL DEFAULT {default_config.unusedAIUnloadDelay}")
+
+            await self._on_version_migrated(db, existing_config, 2)
+        else:
+            raise Exception(f"Unknown database version: {existing_config['version']}")
+
+    async def _on_version_migrated(self, db, existing_config, new_version):
+        existing_config["version"] = new_version
+        print(f"Database migrated to version {new_version}")
+        await db.execute("UPDATE config SET version = ? WHERE id = 1", (new_version,))
 
 
 # Singleton instance of the database
