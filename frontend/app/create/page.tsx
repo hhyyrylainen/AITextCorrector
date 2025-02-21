@@ -8,6 +8,7 @@ export default function CreateNew() {
     const router = useRouter(); // Next.js router for redirection
     const [error, setError] = useState<string | null>(null); // State to manage error messages
     const [writingStyle, setWritingStyle] = useState<string>(""); // State to manage the "Writing Style" field content
+    const [levelOfCorrection, setLevelOfCorrection] = useState<string>("2");
     const [analysisError, setAnalysisError] = useState<string | null>(null); // State to manage errors for the embedded form
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -107,7 +108,29 @@ export default function CreateNew() {
                         />
                     </div>
 
-                    {/* Writing Style Section */}
+                    {/* "Level of Correction" Field */}
+                    <div>
+                        <label
+                            htmlFor="levelOfCorrection"
+                            className="block text-sm font-medium text-gray-700"
+                        >
+                            Level of Correction
+                        </label>
+                        <select
+                            id="levelOfCorrection"
+                            name="levelOfCorrection"
+                            value={levelOfCorrection}
+                            onChange={(e) => setLevelOfCorrection(e.target.value)}
+                            required
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        >
+                            <option value="1">Typo fixing only</option>
+                            <option value="2">Slight grammar fixing</option>
+                            <option value="3">Full grammar improvement</option>
+                        </select>
+                    </div>
+
+                    {/* Writing Style Field */}
                     <div>
                         <label htmlFor="writingStyle" className="block text-sm font-medium text-gray-700">
                             Writing Style
