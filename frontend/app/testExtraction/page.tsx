@@ -5,6 +5,7 @@ import React, {useState} from "react";
 type Paragraph = {
     index: number;
     text: string;
+    leadingSpace: number;
 };
 
 type Chapter = {
@@ -116,6 +117,7 @@ export default function CreateNew() {
                                 {/* Chapter Paragraphs */}
                                 {chapter.paragraphs.map((paragraph) => (
                                     <p key={paragraph.index} className="text-gray-600 leading-relaxed">
+                                        {paragraph.leadingSpace > 0 && (<br/>)}
                                         <span className="text-gray-400 text-sm pe-1">{paragraph.index}.</span>
                                         {paragraph.text}
                                     </p>
@@ -123,7 +125,6 @@ export default function CreateNew() {
                             </div>
                         ))}
                     </div>
-
                 </form>
             </main>
         </div>

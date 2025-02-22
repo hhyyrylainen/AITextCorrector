@@ -1,13 +1,14 @@
 import zipfile
 from typing import IO, List, Dict
 
-from pydantic import BaseModel
 from bs4 import BeautifulSoup
+from pydantic import BaseModel
 
 
 class Paragraph(BaseModel):
     text: str
     index: int
+    leadingSpace: int = 0
 
 
 class Chapter(BaseModel):
@@ -17,7 +18,7 @@ class Chapter(BaseModel):
 
 def extract_epub_chapters(file_content: IO[bytes]) -> List[Chapter]:
     """
-    Extracts chapters as plain text from an EPUB file up to a given limit of total characters.
+    Extracts chapters as plain text from an EPUB file.
 
     Args:
         file_content (IO): File-like object containing the EPUB content.
@@ -69,18 +70,31 @@ def extract_epub_chapters(file_content: IO[bytes]) -> List[Chapter]:
 
                     # Body text extraction
                     paragraphs = body.find_all('p')  # Get paragraphs (<p> tags)
+
+                    leading_space = 0
+
                     for paragraph in paragraphs:
                         paragraph_text = paragraph.get_text(strip=True)  # Extract clean text from the paragraph
 
-                        # Need to ignore "Chapter Notes"
-
                         # Ignore empty paragraphs or remarks
-                        if not paragraph_text or paragraph_text.lower().startswith(
-                                ('note:', 'remark:', 'skip:', 'footer:')):
+                        skip = (not paragraph_text or paragraph_text.lower().startswith(
+                            ('note:', 'remark:', 'skip:', 'footer:', "chapter notes")))
+
+                        # Ignore notes in ao3 epubs
+                        if not skip and paragraph.parent.name == "blockquote" and "userstuff" in paragraph.parent.get(
+                                "class") :
+                            skip = True
+
+                        if skip:
+                            # Empty paragraphs add extra spacing between other paragraphs to make chapters look nicer
+                            if len(paragraph_result) > 0:
+                                leading_space = 1
                             continue
 
-                        paragraph_result.append(Paragraph(text=paragraph_text, index=paragraph_counter))
+                        paragraph_result.append(
+                            Paragraph(text=paragraph_text, index=paragraph_counter, leadingSpace=leading_space))
                         paragraph_counter += 1
+                        leading_space = 0
 
                     chapter = Chapter(title=chapter_title, paragraphs=paragraph_result)
                     result.append(chapter)
