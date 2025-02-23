@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 
 // Configures backend polling time for refresh of this component
-const refreshInterval = 2000;
+const refreshInterval = 3000;
 
 // TODO: maybe also show the queue length here if it is over 1?
 
