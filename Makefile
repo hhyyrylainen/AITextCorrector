@@ -34,4 +34,7 @@ ollama-interactive-small:
 ollama-interactive:
 	podman exec -it ollama ollama run deepseek-r1:32b
 
+ollama-interactive-llama31:
+	podman exec -it ollama ollama run llama3.1:8b
+
 .PHONY: ollama-pull-rocm ollama-pull-vanilla ollama-run ollama-interactive-small ollama-interactive
