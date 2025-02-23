@@ -24,6 +24,10 @@ export default function Page({params}: ProjectPageProps) {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [summaryMessage, setSummaryMessage] = useState<string | null>(null);
 
+    // State for toggling chapter summaries
+    const [showSummaries, setShowSummaries] = useState(false);
+
+
     // Unwrap params using `React.use()`
     useEffect(() => {
         const unwrapParams = async () => {
@@ -107,19 +111,39 @@ export default function Page({params}: ProjectPageProps) {
                         {/* List of Project Chapters */}
                         <section>
                             <h2>Chapters</h2>
+
                             <ul className="space-y-2">
-                                {project.chapters.map((chapter, index) => (
-                                    <li key={chapter.id} className="flex gap-4 items-center">
-                                        <span className="font-semibold">#{index}</span>
-                                        <Link
-                                            href={`/chapter/${chapter.id}`}
-                                            className="text-blue-500 hover:underline"
-                                        >
-                                            {chapter.name}
-                                        </Link>
+                                {project.chapters.map(chapter => (
+                                    <li key={chapter.id} className="flex flex-col gap-2">
+                                        <div className="flex items-center gap-4">
+                                            <span className="font-semibold">{chapter.chapterIndex}.</span>
+                                            <Link
+                                                href={`/chapter/${chapter.id}`}
+                                                className="text-blue-500 hover:underline"
+                                            >
+                                                {chapter.name}
+                                            </Link>
+                                        </div>
+                                        {showSummaries && (
+                                            <p className="text-gray-600">
+                                                {chapter.summary || "No summary exists"}
+                                            </p>
+                                        )}
                                     </li>
                                 ))}
                             </ul>
+
+                            {/* Checkbox to toggle summaries */}
+                            <div className="mt-4">
+                                <label className="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={showSummaries}
+                                        onChange={() => setShowSummaries((prev) => !prev)}
+                                    />
+                                    <span>Show Summaries</span>
+                                </label>
+                            </div>
                         </section>
 
                         {/* Summary Generation Section */}
@@ -150,7 +174,7 @@ export default function Page({params}: ProjectPageProps) {
                         </button>
                     </>
                 ) : (
-                    <p>No project found. Please try again later.</p>
+                    <p>No project found. Please go back to the project list.</p>
                 )}
             </main>
         </div>
