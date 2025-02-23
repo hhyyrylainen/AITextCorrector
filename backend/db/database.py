@@ -8,8 +8,9 @@ from pathlib import Path
 import aiosqlite
 
 from .config import ConfigModel, default_config
+from .project import Project
 
-DATABASE_VERSION = 2
+DATABASE_VERSION = 3
 
 
 def get_db_path() -> Path:
@@ -81,19 +82,7 @@ class Database:
             await db.execute("PRAGMA journal_mode=WAL;")  # Enable Write-Ahead Logging (WAL)
             db.row_factory = aiosqlite.Row  # Return dictionary-like rows
 
-            await db.execute("""
-                CREATE TABLE IF NOT EXISTS config (
-                    id INTEGER PRIMARY KEY,
-                    version INTEGER NOT NULL,
-                    selectedModel TEXT NOT NULL,
-                    correctionReRuns INTEGER NOT NULL DEFAULT 0,
-                    autoSummaries BOOLEAN NOT NULL DEFAULT 0,
-                    styleExcerptLength INTEGER NOT NULL DEFAULT 1000,
-                    simultaneousCorrectionSize INTEGER NOT NULL DEFAULT 200,
-                    unusedAIUnloadDelay INTEGER NOT NULL DEFAULT 120
-                );
-            """)
-            await db.commit()
+            await Database._create_default_tables_if_missing(db)
 
             # Create config and apply migrations if needed
             async with db.execute("SELECT * FROM config WHERE id = 1") as cursor:
@@ -132,6 +121,72 @@ class Database:
 
             await db.commit()
             print("Database loaded")
+
+    async def create_project(self, project: Project) -> int:
+        """
+        Writes a new project (along with its chapters and paragraphs) into the database.
+        The provided project data does not include valid IDs. This method inserts the
+        project into the Projects table, the chapters into the Chapters table, and the paragraphs
+        into the Paragraphs table. It returns the newly created project's ID.
+        """
+        connection = self._connection
+        async with self._lock:
+            try:
+                # Begin a transaction
+                await connection.execute("BEGIN")
+
+                # Insert the Project data and retrieve the new project ID.
+                project_cursor = await connection.execute(
+                    """
+                    INSERT INTO Projects (name, stylePrompt, correctionStrengthLevel)
+                    VALUES (?, ?, ?)
+                    """,
+                    (project.name, project.stylePrompt, project.correctionStrengthLevel)
+                )
+                project_id = project_cursor.lastrowid
+
+                # Insert each Chapter and its Paragraphs.
+                for chapter in project.chapters:
+                    chapter_cursor = await connection.execute(
+                        """
+                        INSERT INTO Chapters (projectId, chapterIndex, name, summary)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (project_id, chapter.chapterIndex, chapter.name, chapter.summary)
+                    )
+                    chapter_id = chapter_cursor.lastrowid
+
+                    for paragraph in chapter.paragraphs:
+                        await connection.execute(
+                            """
+                            INSERT INTO Paragraphs (
+                                partOfChapter, paragraphIndex, originalText,
+                                correctedText, manuallyCorrectedText, leadingSpace
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                chapter_id,
+                                paragraph.index,
+                                paragraph.originalText,
+                                paragraph.correctedText,
+                                paragraph.manuallyCorrectedText,
+                                paragraph.leadingSpace,
+                            )
+                        )
+
+                # Commit the transaction if all inserts succeed.
+                await connection.commit()
+
+            except aiosqlite.IntegrityError as e:
+                # Rollback in case a unique constraint is violated (e.g., duplicate project name)
+                await connection.rollback()
+                raise ValueError("A project with the same name already exists.") from e
+            except Exception as e:
+                await connection.rollback()
+                raise RuntimeError("Failed to write project to the database.") from e
+
+        return project_id
 
     async def get_config(self) -> ConfigModel:
         """
@@ -215,6 +270,13 @@ class Database:
                 f"ALTER TABLE config ADD COLUMN unusedAIUnloadDelay INTEGER NOT NULL DEFAULT {default_config.unusedAIUnloadDelay}")
 
             await self._on_version_migrated(db, existing_config, 2)
+
+        if existing_config["version"] == 2:
+            await db.execute("""
+                CREATE UNIQUE INDEX idx_unique_project_name ON Projects (name);
+            """)
+
+            await self._on_version_migrated(db, existing_config, 3)
         else:
             raise Exception(f"Unknown database version: {existing_config['version']}")
 
@@ -223,6 +285,57 @@ class Database:
         print(f"Database migrated to version {new_version}")
         await db.execute("UPDATE config SET version = ? WHERE id = 1", (new_version,))
 
+    @staticmethod
+    async def _create_default_tables_if_missing(db):
+        await db.execute("BEGIN TRANSACTION;")
+
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS config (
+                id INTEGER PRIMARY KEY,
+                version INTEGER NOT NULL,
+                selectedModel TEXT NOT NULL,
+                correctionReRuns INTEGER NOT NULL DEFAULT 0,
+                autoSummaries BOOLEAN NOT NULL DEFAULT 0,
+                styleExcerptLength INTEGER NOT NULL DEFAULT 1000,
+                simultaneousCorrectionSize INTEGER NOT NULL DEFAULT 200,
+                unusedAIUnloadDelay INTEGER NOT NULL DEFAULT 120
+            );
+        """)
+
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    stylePrompt TEXT NOT NULL,
+                    correctionStrengthLevel INTEGER NOT NULL
+                );
+        """)
+
+        await db.execute("""
+                CREATE TABLE IF NOT EXISTS chapters (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    projectId INTEGER NOT NULL,
+                    chapterIndex INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    summary TEXT,
+                    FOREIGN KEY (projectId) REFERENCES Projects (id) ON DELETE CASCADE
+                );
+        """)
+
+        await db.execute("""
+                CREATE TABLE IF NOT EXISTS paragraphs (
+                    chapterId INTEGER NOT NULL,
+                    paragraphIndex INTEGER NOT NULL,
+                    originalText TEXT NOT NULL,
+                    correctedText TEXT,
+                    manuallyCorrectedText TEXT,
+                    leadingSpace INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY (chapterId) REFERENCES Chapters (id) ON DELETE CASCADE,
+                    PRIMARY KEY (chapterId, paragraphIndex)
+                );
+        """)
+
+        await db.commit()
 
 # Singleton instance of the database
 database = Database()
