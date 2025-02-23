@@ -8,7 +8,7 @@ from pathlib import Path
 import aiosqlite
 
 from .config import ConfigModel, default_config
-from .project import Project
+from .project import Project, Chapter
 
 DATABASE_VERSION = 3
 
@@ -188,6 +188,59 @@ class Database:
 
         return project_id
 
+    async def get_project(self, project_id: int) -> Project | None:
+        """
+        Fetches the primary data for a project, along with all associated chapters,
+        but excludes the paragraphs to optimize data retrieval. Uses async operations.
+
+        Args:
+            project_id (int): The ID of the project to retrieve.
+
+        Returns:
+            Project | None: The project data, or None if no project is found.
+        """
+        connection = self._connection
+
+        try:
+            # Fetch the primary project data
+            async with connection.execute(
+                    """
+                SELECT id, name, correctionStrengthLevel, stylePrompt
+                FROM projects
+                WHERE id = ?
+                """,
+                    (project_id,),
+            ) as project_cursor:
+                project_data = await project_cursor.fetchone()
+
+            # If no project data is found, return None
+            if not project_data:
+                return None
+
+            # Fetch all associated chapters for the project
+            async with connection.execute(
+                    """
+                SELECT id, name, chapterIndex, summary
+                FROM chapters
+                WHERE projectId = ?
+                """,
+                    (project_id,),
+            ) as chapters_cursor:
+                chapters = [
+                    Chapter(id=row[0], projectId=project_id, name=row[1], chapterIndex=row[2], summary=row[3],
+                            paragraphs=[]) async for row in chapters_cursor
+                ]
+
+            project = Project(id=project_data[0], name=project_data[1], correctionStrengthLevel=project_data[2],
+                              stylePrompt=project_data[3], chapters=chapters)
+
+            return project
+
+        except Exception as e:
+            # Handle and log database errors (optional logging)
+            print(f"Error fetching project data: {e}")
+            return None
+
     async def get_config(self) -> ConfigModel:
         """
         Fetch configuration asynchronously, using a cached copy if valid.
@@ -336,6 +389,7 @@ class Database:
         """)
 
         await db.commit()
+
 
 # Singleton instance of the database
 database = Database()
