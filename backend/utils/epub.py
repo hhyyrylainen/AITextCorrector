@@ -134,7 +134,7 @@ def chapters_to_plain_text(chapters: List[Chapter], char_limit: int):
                 extracted_text += paragraph.text[:remaining_chars]
                 return extracted_text  # Stop future processing at the limit
 
-            extracted_text += paragraph + "\n\n"  # Add double newline for paragraph break
+            extracted_text += paragraph.text + "\n\n"  # Add double newline for paragraph break
             current_char_count += len(paragraph.text)
 
     return extracted_text
