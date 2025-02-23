@@ -22,7 +22,7 @@ export default function CreateNew() {
         const formData = new FormData(event.currentTarget);
 
         try {
-            const response = await fetch("/api/create", {
+            const response = await fetch("/api/projects", {
                 method: "POST",
                 body: formData,
             });

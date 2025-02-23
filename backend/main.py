@@ -4,7 +4,7 @@ import re
 from asyncio import Lock
 from typing import Dict, Optional
 
-from fastapi import FastAPI, UploadFile, HTTPException
+from fastapi import FastAPI, UploadFile, HTTPException, Form, File
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -146,11 +146,11 @@ async def get_project(project_id: int):
     return await database.get_project(project_id)
 
 
+# Need to use names the frontend can use
+# noinspection PyPep8Naming
 @app.post("/api/projects")
-async def create_new_project(project: Dict, file: UploadFile):
-    if "name" not in project or type(project["name"]) is not str:
-        return {"error": "name required as JSON parameter"}
-
+async def create_new_project(name: str = Form(), writingStyle: str = Form(), levelOfCorrection: int = Form(),
+                             file: UploadFile = File()):
     content_type = file.content_type
 
     if content_type == "application/epub+zip":
@@ -158,10 +158,16 @@ async def create_new_project(project: Dict, file: UploadFile):
     else:
         raise HTTPException(status_code=415, detail="Unsupported file type to extract")
 
-    backend_project = create_project(project["name"], project["writingStyle"], int(project["levelOfCorrection"]),
-                                     chapters)
+    config = await database.get_config()
+
+    backend_project = create_project(name, writingStyle, levelOfCorrection, chapters)
 
     created_id = await database.create_project(backend_project)
+
+    if config.autoSummaries:
+        print("Triggering auto summaries for project", created_id)
+
+        # TODO: trigger the summary
 
     return {"id": created_id}
 

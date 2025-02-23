@@ -138,7 +138,7 @@ class Database:
                 # Insert the Project data and retrieve the new project ID.
                 project_cursor = await connection.execute(
                     """
-                    INSERT INTO Projects (name, stylePrompt, correctionStrengthLevel)
+                    INSERT INTO projects (name, stylePrompt, correctionStrengthLevel)
                     VALUES (?, ?, ?)
                     """,
                     (project.name, project.stylePrompt, project.correctionStrengthLevel)
@@ -149,7 +149,7 @@ class Database:
                 for chapter in project.chapters:
                     chapter_cursor = await connection.execute(
                         """
-                        INSERT INTO Chapters (projectId, chapterIndex, name, summary)
+                        INSERT INTO chapters (projectId, chapterIndex, name, summary)
                         VALUES (?, ?, ?, ?)
                         """,
                         (project_id, chapter.chapterIndex, chapter.name, chapter.summary)
@@ -159,11 +159,11 @@ class Database:
                     for paragraph in chapter.paragraphs:
                         await connection.execute(
                             """
-                            INSERT INTO Paragraphs (
-                                partOfChapter, paragraphIndex, originalText,
+                            INSERT INTO paragraphs (
+                                chapterId, paragraphIndex, originalText,
                                 correctedText, manuallyCorrectedText, leadingSpace
                             )
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?, ?, ?)
                             """,
                             (
                                 chapter_id,
