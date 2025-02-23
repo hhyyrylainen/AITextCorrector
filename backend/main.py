@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from ai.ai_manager import AIManager
 from ai.ollama_client import OllamaClient
 from db.config import ConfigModel
+from db.project import create_project
 from db.database import database
 from utils.epub import extract_epub_chapters, chapters_to_plain_text
 
@@ -25,6 +26,9 @@ app.mount("/_next", StaticFiles(directory=os.path.join(frontend_build_path, "_ne
 
 # Serving root content like this will break everything
 # app.mount("/", StaticFiles(directory=frontend_build_path), name="")
+
+
+# Other setup
 
 downloaded_recommended = False
 
@@ -72,6 +76,9 @@ async def add_no_cache_headers(request, call_next):
     return response
 
 
+############
+# API Routes
+############
 @app.get("/")
 async def serve_index():
     # Serve the index.html for the root route
@@ -84,12 +91,14 @@ async def ping():
     return {"message": "pong"}
 
 
+###############
 # GUI endpoints
+###############
 @app.post("/api/textAnalysis")
 async def text_analysis(file: UploadFile):
     content_type = file.content_type
 
-    excerpt_length = (await database.get_config()).textAnalysisExcerptLength
+    excerpt_length = (await database.get_config()).styleExcerptLength
 
     if content_type == "application/epub+zip":
         chapters = extract_epub_chapters(file.file)
@@ -101,7 +110,6 @@ async def text_analysis(file: UploadFile):
         raise HTTPException(status_code=415, detail="Unsupported media type")
 
     instructions = await (await get_ai_manager()).analyze_writing_style(text)
-
     return {"instructions": instructions}
 
 
@@ -111,10 +119,11 @@ async def extract_text(file: UploadFile):
 
     if content_type == "application/epub+zip":
         return extract_epub_chapters(file.file)
-    elif content_type == "text/plain":
-        # Split on blank lines
-        sections = re.split(r'\n\s*\n', (await file.read()).decode("utf-8"))
-        return [{"title": "Plain text", "paragraphs": sections}]
+    # TODO: reimplement text plain mode (needs paragraph objects)
+    # elif content_type == "text/plain":
+    #     # Split on blank lines
+    #     sections = re.split(r'\n\s*\n', (await file.read()).decode("utf-8"))
+    #     return [{"title": "Plain text", "paragraphs": sections}]
     else:
         raise HTTPException(status_code=415, detail="Unsupported media type")
 
@@ -126,7 +135,40 @@ async def get_models():
     return {"thinking": ai_manager.currently_running, "queueLength": ai_manager.queue_length, "model": ai_manager.model}
 
 
+# Project management endpoints
+@app.get("/api/projects")
+async def get_projects():
+    return await database.get_projects()
+
+
+@app.get("/api/projects/{project_id}")
+async def get_project(project_id: int):
+    return await database.get_project(project_id)
+
+
+@app.post("/api/projects")
+async def create_new_project(project: Dict, file: UploadFile):
+    if "name" not in project or type(project["name"]) is not str:
+        return {"error": "name required as JSON parameter"}
+
+    content_type = file.content_type
+
+    if content_type == "application/epub+zip":
+        chapters = extract_epub_chapters(file.file)
+    else:
+        raise HTTPException(status_code=415, detail="Unsupported file type to extract")
+
+    backend_project = create_project(project["name"], project["writingStyle"], int(project["levelOfCorrection"]),
+                                     chapters)
+
+    created_id = await database.create_project(backend_project)
+
+    return {"id": created_id}
+
+
+######################
 # General AI endpoints
+######################
 @app.get("/api/ai/models")
 async def get_models():
     try:
@@ -173,7 +215,9 @@ async def get_models():
     return {"message": "recommended models download started"}
 
 
+###################
 # Config management
+###################
 @app.get("/api/config")
 async def get_config():
     return await database.get_config()
@@ -195,7 +239,9 @@ async def update_config(new_config: ConfigModel):
     print("Got new config: ", new_config)
 
 
+#################################
 # Support for static file serving
+#################################
 @app.get("/{path:path}")
 async def serve_other_files(path: str):
     file_path = os.path.join(frontend_build_path, path)
