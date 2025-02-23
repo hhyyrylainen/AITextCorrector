@@ -21,13 +21,14 @@ class OllamaClient:
         self.base_url = base_url
         self.unload_delay = unload_delay
 
-    def submit_chat_message(self, model: str, message: str) -> Dict[str, Any]:
+    def submit_chat_message(self, model: str, message: str, extra_options: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Sends a message to a specific model in the Ollama API and retrieves the response in a chat format.
 
         Args:
             model (str): The name of the AI model to use (e.g., "llama2").
             message (str): The content of the message to send.
+            extra_options (Dict[str, Any]): Additional options to pass to the API .
 
         Returns:
             Dict[str, Any]: The response JSON from the Ollama API.
@@ -38,6 +39,9 @@ class OllamaClient:
             "messages": [{"role": "user", "content": message}],
             "stream": False,
         }
+
+        if extra_options is not None:
+            payload["options"] = extra_options
 
         self._add_keep_alive(payload)
 

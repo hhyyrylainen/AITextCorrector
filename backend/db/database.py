@@ -4,11 +4,12 @@ import platform
 import time
 from asyncio import Lock
 from pathlib import Path
+from typing import List
 
 import aiosqlite
 
 from .config import ConfigModel, default_config
-from .project import Project, Chapter
+from .project import Project, Chapter, Paragraph
 
 DATABASE_VERSION = 3
 
@@ -223,6 +224,7 @@ class Database:
                 SELECT id, name, chapterIndex, summary
                 FROM chapters
                 WHERE projectId = ?
+                ORDER BY chapterIndex ASC
                 """,
                     (project_id,),
             ) as chapters_cursor:
@@ -240,6 +242,74 @@ class Database:
             # Handle and log database errors (optional logging)
             print(f"Error fetching project data: {e}")
             return None
+
+    async def get_chapter_paragraph_text(self, chapter_id: int) -> List[Paragraph]:
+        """
+        Fetches all paragraphs associated with a given chapter ID. Only returns the primary text.
+        Uses async operations for retrieving data from the database.
+    
+        Args:
+            chapter_id (int): The ID of the chapter to retrieve paragraphs for.
+    
+        Returns:
+            List[Paragraph]: A list of Paragraph objects, or an empty list if no paragraphs are found.
+        """
+        connection = self._connection
+
+        try:
+            # Fetch paragraphs for the specified chapter
+            async with connection.execute(
+                    """
+                    SELECT paragraphIndex, originalText, leadingSpace
+                    FROM paragraphs
+                    WHERE chapterId = ?
+                    ORDER BY paragraphIndex ASC
+                    """,
+                    (chapter_id,),
+            ) as paragraphs_cursor:
+                paragraphs = [
+                    Paragraph(
+                        index=row["paragraphIndex"],
+                        originalText=row["originalText"],
+                        leadingSpace=row["leadingSpace"],
+                        partOfChapter=chapter_id,
+                        correctedText=None,
+                        manuallyCorrectedText=None,
+                    ) async for row in paragraphs_cursor
+                ]
+
+            return paragraphs
+
+        except Exception as e:
+            # Handle and log database errors (optional logging)
+            print(f"Error fetching paragraph data: {e}")
+            return []
+
+    async def update_chapter(self, chapter: Chapter):
+        """
+        Updates an existing chapter's name and summary but does not modify the projectId or paragraphs.
+    
+        Args:
+            chapter (Chapter): Chapter object containing the updated details.
+    
+        Raises:
+            ValueError: If no chapter with the specified ID exists.
+        """
+        async with self._lock:  # Ensure thread safety
+            connection = self._connection
+
+            result = await connection.execute(
+                """
+                UPDATE chapters
+                SET name = ?, summary = ?
+                WHERE id = ?
+                """,
+                (chapter.name, chapter.summary, chapter.id)
+            )
+            if result.rowcount == 0:
+                raise ValueError(f"No chapter found with ID {chapter.id}")
+
+            await connection.commit()
 
     async def get_config(self) -> ConfigModel:
         """

@@ -4,7 +4,7 @@ import re
 from asyncio import Lock
 from typing import Dict, Optional
 
-from fastapi import FastAPI, UploadFile, HTTPException, Form, File
+from fastapi import FastAPI, UploadFile, HTTPException, Form, File, BackgroundTasks
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -145,6 +145,18 @@ async def get_projects():
 async def get_project(project_id: int):
     return await database.get_project(project_id)
 
+@app.post("/api/projects/{project_id}/generateSummaries")
+async def get_project(project_id: int, background_tasks: BackgroundTasks):
+    project = await database.get_project(project_id)
+
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    print("Triggering summary generation for project", project_id)
+
+    ai_manager = await get_ai_manager()
+
+    background_tasks.add_task(ai_manager.generate_summaries, project, database)
 
 # Need to use names the frontend can use
 # noinspection PyPep8Naming
