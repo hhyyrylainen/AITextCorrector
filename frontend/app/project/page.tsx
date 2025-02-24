@@ -1,20 +1,17 @@
 "use client";
 
-type ProjectPageProps = {
-    params: {
-        id: Promise<{ id: string }>; // The dynamic route parameter id as a string
-    };
-};
-
-
-import {useState, useEffect} from "react";
+import {useState, useEffect, Suspense} from "react";
+import {useSearchParams} from "next/navigation"; // Hook to access query parameters
 import Link from "next/link";
 
 import {Project} from "@/app/projectDefinitions";
 
-export default function Page({params}: ProjectPageProps) {
-    // State to store unwrapped params
-    const [projectId, setProjectId] = useState<string | null>(null);
+function Page() {
+    // Access the search parameters object
+    const searchParams = useSearchParams();
+
+    // Extract the `id` query parameter
+    const projectId = searchParams.get("id");
 
     // State for project data, error messages, and summary button states
     const [project, setProject] = useState<Project | null>(null);
@@ -27,21 +24,6 @@ export default function Page({params}: ProjectPageProps) {
 
     // State for toggling chapter summaries
     const [showSummaries, setShowSummaries] = useState(false);
-
-
-    // Unwrap params using `React.use()`
-    useEffect(() => {
-        // Handle both synchronous and Promise-based `params`
-        const unwrapParams = async () => {
-            const resolvedParams = await params; // Await `params` if it's a Promise
-
-            // Apparently typescript is just wrong here? I can't get this to not give an error
-            // @ts-ignore
-            setProjectId(resolvedParams.id);
-        };
-
-        unwrapParams();
-    }, [params]);
 
 
     // Fetch the Project data from the backend when `projectId` is available
@@ -57,8 +39,8 @@ export default function Page({params}: ProjectPageProps) {
                 }
                 const data: Project = await res.json();
                 setProject(data);
-            } catch (error: any) {
-                setErrorMessage(error.message || "An error occurred while fetching project data.");
+            } catch (error) {
+                setErrorMessage((error as Error).message || "An error occurred while fetching project data.");
             } finally {
                 setLoading(false);
             }
@@ -88,7 +70,7 @@ export default function Page({params}: ProjectPageProps) {
                     "Failed to generate summaries. Please try again later."
                 );
             }
-        } catch (error) {
+        } catch {
             // Handle network or unexpected errors
             setSummaryMessage("An unexpected error occurred. Please try again.");
         } finally {
@@ -112,13 +94,16 @@ export default function Page({params}: ProjectPageProps) {
             } else {
                 setErrorMessage("Failed to regenerate the summary. Please try again.");
             }
-        } catch (error) {
+        } catch {
             setErrorMessage("An error occurred while regenerating the summary. Please try again.");
         } finally {
             setRegeneratingSummary(false);
         }
     };
 
+    if (projectId == null) {
+        return <p>No project found. Please go back to the project list.</p>
+    }
 
     return (
         <div className="p-8 pb-20 gap-16 font-[family-name:var(--font-geist-sans)]">
@@ -233,3 +218,10 @@ export default function Page({params}: ProjectPageProps) {
     );
 }
 
+export default function PageWrapper() {
+    return (
+        <Suspense>
+            <Page/>
+        </Suspense>
+    )
+}

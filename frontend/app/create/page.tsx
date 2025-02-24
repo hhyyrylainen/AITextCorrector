@@ -31,7 +31,7 @@ export default function CreateNew() {
                 const data = await response.json();
                 // Assume the server responds with an ID like { id: "123" }
                 if (data?.id) {
-                    router.push(`/project/${data.id}`); // Redirect to the new project page
+                    router.push(`/project?id=${data.id}`); // Redirect to the new project page
                 } else {
                     setError("An unexpected error occurred. Missing project ID.");
                 }
@@ -225,7 +225,7 @@ export default function CreateNew() {
 
                 <p>
                     Test text extraction <Link href="/testExtraction" style={{color: "blue", textDecoration: "underline"}}>
-                    here</Link> to see if there's a problem.
+                    here</Link> to see if there&apos;s a problem.
                 </p>
             </main>
         </div>
