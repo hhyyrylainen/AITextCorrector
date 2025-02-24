@@ -28,6 +28,7 @@ ollama-pull-vanilla:
 ollama-run:
 	podman run -d --privileged --device /dev/kfd --device /dev/dri -v ollama:/root/.ollama -p 11434:11434 --name ollama --replace ollama/ollama:rocm
 
+# Increasing context window in the interactive prompt: /set parameter num_ctx 8192
 ollama-interactive-small:
 	podman exec -it ollama ollama run deepseek-r1:14b
 
