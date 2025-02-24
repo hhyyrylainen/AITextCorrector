@@ -1,8 +1,10 @@
 import re
 from functools import partial
+from typing import List
+
 from backend.db.config import DEFAULT_MODEL
 from backend.db.database import Database
-from backend.db.project import Project
+from backend.db.project import Project, Chapter, Paragraph
 from backend.utils.job import Job
 from backend.utils.job_queue import JobQueue
 from .ollama_client import OllamaClient
@@ -73,33 +75,21 @@ class AIManager:
 
             paragraphs = await database.get_chapter_paragraph_text(chapter.id)
 
-            text = f"Chapter {chapter.chapterIndex}: {chapter.name}\n\n"
-
-            for paragraph in paragraphs:
-                text += "\n\n"
-
-                if paragraph.leadingSpace > 0:
-                    text += "\n" * paragraph.leadingSpace
-
-                text += paragraph.originalText
-
-            # Increase context length to get full chapter explanations
-            extra_options = {"num_ctx": SUMMARY_CONTEXT_WINDOW_SIZE}
-
-            task = Job(
-                partial(self._prompt_chat, "Read this text:\n" + text + SUMMARY_PROMPT, self.model, extra_options,
-                        True))
-
-            self.job_queue.submit(task)
-
-            response = await task
-
-            if len(response) > 3500:
-                response = response[:3500] + "..."
-
-            chapter.summary = response
+            await self._generate_summary(chapter, paragraphs)
 
             await database.update_chapter(chapter)
+
+    async def generate_single_summary(self, chapter: Chapter):
+        """
+        Synchronously generate a summary for a single chapter
+
+        :param chapter: chapter to generate summary for
+        """
+        if len(chapter.paragraphs) < 1:
+            raise Exception(
+                "Cannot generate summary for chapter with no paragraphs (was the right database fetch method used?")
+
+        await self._generate_summary(chapter, chapter.paragraphs)
 
     def download_recommended(self):
         all_models = [DEFAULT_MODEL] + EXTRA_RECOMMENDED_MODELS
@@ -114,6 +104,33 @@ class AIManager:
     @property
     def queue_length(self):
         return self.job_queue.task_queue.qsize()
+
+    async def _generate_summary(self, chapter: Chapter, paragraphs: List[Paragraph]):
+        text = f"Chapter {chapter.chapterIndex}: {chapter.name}\n\n"
+
+        for paragraph in paragraphs:
+            text += "\n\n"
+
+            if paragraph.leadingSpace > 0:
+                text += "\n" * paragraph.leadingSpace
+
+            text += paragraph.originalText
+
+        # Increase context length to get full chapter explanations
+        extra_options = {"num_ctx": SUMMARY_CONTEXT_WINDOW_SIZE}
+
+        task = Job(
+            partial(self._prompt_chat, "Read this text:\n" + text + SUMMARY_PROMPT, self.model, extra_options,
+                    True))
+
+        self.job_queue.submit(task)
+
+        response = await task
+
+        if len(response) > 3500:
+            response = response[:3500] + "..."
+
+        chapter.summary = response
 
     def _prompt_chat(self, message, model, extra_options=None, remove_think=False) -> str:
         self.currently_running = True
