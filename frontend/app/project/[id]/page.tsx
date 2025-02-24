@@ -2,7 +2,7 @@
 
 type ProjectPageProps = {
     params: {
-        id: string; // The dynamic route parameter id as a string
+        id: Promise<{ id: string }>; // The dynamic route parameter id as a string
     };
 };
 
@@ -10,7 +10,7 @@ type ProjectPageProps = {
 import {useState, useEffect} from "react";
 import Link from "next/link";
 
-import {Project, Chapter} from "@/app/projectDefinitions";
+import {Project} from "@/app/projectDefinitions";
 
 export default function Page({params}: ProjectPageProps) {
     // State to store unwrapped params
@@ -31,10 +31,15 @@ export default function Page({params}: ProjectPageProps) {
 
     // Unwrap params using `React.use()`
     useEffect(() => {
+        // Handle both synchronous and Promise-based `params`
         const unwrapParams = async () => {
-            const {id} = await params; // Await params Promise
-            setProjectId(id); // Set the project ID
+            const resolvedParams = await params; // Await `params` if it's a Promise
+
+            // Apparently typescript is just wrong here? I can't get this to not give an error
+            // @ts-ignore
+            setProjectId(resolvedParams.id);
         };
+
         unwrapParams();
     }, [params]);
 
@@ -133,92 +138,92 @@ export default function Page({params}: ProjectPageProps) {
                 ) : project ? (
                     <>
                         {/* List of Project Chapters */}
-                            <section>
-                                <h2>Chapters</h2>
+                        <section>
+                            <h2>Chapters</h2>
 
-                                <ul className="space-y-2">
-                                    {project.chapters.map(chapter => (
-                                        <li key={chapter.id} className="flex flex-col gap-2">
-                                            <div className="flex items-center gap-4">
-                                                <span className="font-semibold">{chapter.chapterIndex}.</span>
-                                                <Link
-                                                    href={`/chapter/${chapter.id}`}
-                                                    className="text-blue-500 hover:underline"
-                                                >
-                                                    {chapter.name}
-                                                </Link>
-                                            </div>
-                                            {showSummaries && (
-                                                <div className="text-gray-600 mb-3">
-                                                    {/* Replace "\n" with actual <br /> elements */}
-                                                    {/* TODO: add a button to regenerate a summary that exists */}
-                                                    {chapter.summary
-                                                        ? (
-                                                            <div>
-                                                                {chapter.summary.split("\n").map((line, index) => (
-                                                                    <span key={index}>
+                            <ul className="space-y-2">
+                                {project.chapters.map(chapter => (
+                                    <li key={chapter.id} className="flex flex-col gap-2">
+                                        <div className="flex items-center gap-4">
+                                            <span className="font-semibold">{chapter.chapterIndex}.</span>
+                                            <Link
+                                                href={`/chapter/${chapter.id}`}
+                                                className="text-blue-500 hover:underline"
+                                            >
+                                                {chapter.name}
+                                            </Link>
+                                        </div>
+                                        {showSummaries && (
+                                            <div className="text-gray-600 mb-3">
+                                                {/* Replace "\n" with actual <br /> elements */}
+                                                {/* TODO: add a button to regenerate a summary that exists */}
+                                                {chapter.summary
+                                                    ? (
+                                                        <div>
+                                                            {chapter.summary.split("\n").map((line, index) => (
+                                                                <span key={index}>
                                                             {line}
-                                                                        <br/>
+                                                                    <br/>
                                                         </span>
-                                                                ))}
+                                                            ))}
 
-                                                                {/* Button to regenerate chapter summary */}
-                                                                {regeneratingSummary ? "Regenerating..." :
-                                                                    (<button
-                                                                        className="text-blue-500 hover:underline text-sm"
-                                                                        onClick={() => regenerateSummary(chapter.id)}
-                                                                    >
-                                                                        Regenerate Summary
-                                                                    </button>)
-                                                                }
-                                                            </div>
-                                                        )
-                                                        : "No summary exists"}
-                                                </div>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
+                                                            {/* Button to regenerate chapter summary */}
+                                                            {regeneratingSummary ? "Regenerating..." :
+                                                                (<button
+                                                                    className="text-blue-500 hover:underline text-sm"
+                                                                    onClick={() => regenerateSummary(chapter.id)}
+                                                                >
+                                                                    Regenerate Summary
+                                                                </button>)
+                                                            }
+                                                        </div>
+                                                    )
+                                                    : "No summary exists"}
+                                            </div>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
 
-                                {/* Checkbox to toggle summaries */}
-                                <div className="mt-4">
-                                    <label className="flex items-center space-x-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={showSummaries}
-                                            onChange={() => setShowSummaries((prev) => !prev)}
-                                        />
-                                        <span>Show Summaries</span>
-                                    </label>
-                                </div>
-                            </section>
+                            {/* Checkbox to toggle summaries */}
+                            <div className="mt-4">
+                                <label className="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={showSummaries}
+                                        onChange={() => setShowSummaries((prev) => !prev)}
+                                    />
+                                    <span>Show Summaries</span>
+                                </label>
+                            </div>
+                        </section>
 
-                            {/* Summary Generation Section */}
-                            <p>
-                                Press the following button if chapter summaries are missing.
-                                Once started it will take some minutes for summaries to be generated.
-                            </p>
+                        {/* Summary Generation Section */}
+                        <p>
+                            Press the following button if chapter summaries are missing.
+                            Once started it will take some minutes for summaries to be generated.
+                        </p>
 
-                            {/* Show error message if there's an error */}
-                            {summaryMessage && (
-                                <div className="text-red-600 bg-red-100 p-2 rounded-md">
-                                    {summaryMessage}
-                                </div>
-                            )}
+                        {/* Show error message if there's an error */}
+                        {summaryMessage && (
+                            <div className="text-red-600 bg-red-100 p-2 rounded-md">
+                                {summaryMessage}
+                            </div>
+                        )}
 
-                            {/* Button to trigger summary generation */}
-                            <button
-                                type="button"
-                                onClick={requestSummaryGeneration}
-                                className={`px-4 py-2 rounded-md shadow-sm focus:outline-none ${
-                                    summaryRequested || summaryGenerated
-                                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                        : "bg-gray-300 text-gray-700 hover:bg-gray-200 focus:ring-gray-500 focus:ring-offset-2"
-                                }`}
-                                disabled={summaryRequested || summaryGenerated} // Disable button when processing
-                            >
-                                {summaryGenerated ? "Summaries Generated" : "Generate Chapter Summaries"}
-                            </button>
+                        {/* Button to trigger summary generation */}
+                        <button
+                            type="button"
+                            onClick={requestSummaryGeneration}
+                            className={`px-4 py-2 rounded-md shadow-sm focus:outline-none ${
+                                summaryRequested || summaryGenerated
+                                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                    : "bg-gray-300 text-gray-700 hover:bg-gray-200 focus:ring-gray-500 focus:ring-offset-2"
+                            }`}
+                            disabled={summaryRequested || summaryGenerated} // Disable button when processing
+                        >
+                            {summaryGenerated ? "Summaries Generated" : "Generate Chapter Summaries"}
+                        </button>
                     </>
                 ) : (
                     <p>No project found. Please go back to the project list.</p>
