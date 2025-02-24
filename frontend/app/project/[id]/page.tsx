@@ -149,7 +149,7 @@ export default function Page({params}: ProjectPageProps) {
                                                 </Link>
                                             </div>
                                             {showSummaries && (
-                                                <p className="text-gray-600">
+                                                <div className="text-gray-600 mb-3">
                                                     {/* Replace "\n" with actual <br /> elements */}
                                                     {/* TODO: add a button to regenerate a summary that exists */}
                                                     {chapter.summary
@@ -174,7 +174,7 @@ export default function Page({params}: ProjectPageProps) {
                                                             </div>
                                                         )
                                                         : "No summary exists"}
-                                                </p>
+                                                </div>
                                             )}
                                         </li>
                                     ))}
