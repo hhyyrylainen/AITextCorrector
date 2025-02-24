@@ -7,7 +7,7 @@ type ParagraphCorrectorProps = {
 // A simple component for paragraph correction
 export default function ParagraphCorrector({ paragraph }: ParagraphCorrectorProps) {
   return (
-    <div className="bg-gray-100 p-4 border rounded-md mt-1">
+    <div className="bg-gray-100 p-4 border rounded-md mt-1 w-full">
       <textarea
         className="w-full p-2 border border-gray-300 rounded-md"
         rows={4}

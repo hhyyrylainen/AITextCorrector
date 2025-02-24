@@ -92,8 +92,8 @@ function Page() {
     }
 
     return (
-        <div className="p-8 pb-20 gap-16 font-[family-name:var(--font-geist-sans)]">
-            <main className="flex flex-col gap-8 items-start max-w-2xl">
+        <div className="pb-8 gap-16 w-full font-[family-name:var(--font-geist-sans)]">
+            <main className="flex flex-col gap-8 items-center">
                 <h1>Chapter {chapter?.chapterIndex}: {chapter?.name || chapterId}</h1>
 
                 {chapter && (
@@ -115,16 +115,17 @@ function Page() {
                 ) : chapter ? (
                     <>
                         {/* List of Chapter paragraphs */}
-                        <section>
-                            <h2>Paragraphs</h2>
+                        <section className={"w-full flex flex-col items-center"}>
+                            <h1>Paragraphs</h1>
 
-                            <ul className="space-y-2">
+                            <ul className="space-y-2 w-full">
                                 {chapter.paragraphs.map(paragraph => (
-                                    <li key={paragraph.index} className="flex flex-col gap-2">
+                                    <li key={paragraph.index} className="w-full flex flex-col items-center gap-2">
                                         {paragraph.leadingSpace > 0 && (<div className="h-10"/>)}
-                                        <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-2">
                                             <span className="font-semibold min-w-8">{paragraph.index}.</span>
-                                            <span className="text-gray-700 ms-2 flex-grow">
+                                            <span className="text-gray-700 ms-2"
+                                                  style={{maxWidth: "32rem", width: "32rem"}}>
                                                 {paragraph.originalText.split("\n").map((line, index) => (
                                                     <span key={index}>
                                                         {line}
@@ -133,7 +134,7 @@ function Page() {
                                                 ))}
                                             </span>
                                             <button
-                                                className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
+                                                className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300 min-w-24"
                                                 onClick={() => toggleParagraphCorrection(paragraph.index)}
                                             >
                                                 {correctionStates[paragraph.index] ? "Cancel" : "Correct"}
@@ -148,7 +149,7 @@ function Page() {
                             </ul>
                         </section>
 
-                        <div>
+                        <div className={"max-w-2xl"}>
                             <button
                                 className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
                                 onClick={() => setParagraphCorrection(true)}
@@ -164,47 +165,49 @@ function Page() {
                             </button>
                         </div>
 
-                        <h2>Summary of Chapter</h2>
-                        {/* Summary Section */}
+                        <div className={"max-w-2xl"}>
+                            <h2>Summary of Chapter</h2>
+                            {/* Summary Section */}
 
-                        {chapter.summary ? (
-                            <div>
-                                {chapter.summary.split("\n").map((line, index) => (
-                                    <span key={index}>
+                            {chapter.summary ? (
+                                <div>
+                                    {chapter.summary.split("\n").map((line, index) => (
+                                        <span key={index}>
                                         {line}
-                                        <br/>
+                                            <br/>
                                     </span>
-                                ))}
-                            </div>
-                        ) : (
-                            <p>No summary exists</p>
-                        )}
+                                    ))}
+                                </div>
+                            ) : (
+                                <p>No summary exists</p>
+                            )}
 
-                        <p>
-                            Press the button below to generate a summary for this chapter. Note that it may take a
-                            few minutes to generate.
-                        </p>
+                            <p>
+                                Press the button below to generate a summary for this chapter. Note that it may take a
+                                few minutes to generate.
+                            </p>
 
-                        {/* Show error message if there's an error */}
-                        {summaryMessage && (
-                            <div className="text-red-600 bg-red-100 p-2 rounded-md">
-                                {summaryMessage}
-                            </div>
-                        )}
+                            {/* Show error message if there's an error */}
+                            {summaryMessage && (
+                                <div className="text-red-600 bg-red-100 p-2 rounded-md">
+                                    {summaryMessage}
+                                </div>
+                            )}
 
-                        {/* Button to trigger summary generation */}
-                        <button
-                            type="button"
-                            onClick={regenerateSummary}
-                            className={`px-4 py-2 rounded-md shadow-sm focus:outline-none ${
-                                regeneratingSummary
-                                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                    : "bg-gray-300 text-gray-700 hover:bg-gray-200 focus:ring-gray-500 focus:ring-offset-2"
-                            }`}
-                            disabled={regeneratingSummary} // Disable button when processing
-                        >
-                            {"Generate Summary"}
-                        </button>
+                            {/* Button to trigger summary generation */}
+                            <button
+                                type="button"
+                                onClick={regenerateSummary}
+                                className={`px-4 py-2 rounded-md shadow-sm focus:outline-none ${
+                                    regeneratingSummary
+                                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                        : "bg-gray-300 text-gray-700 hover:bg-gray-200 focus:ring-gray-500 focus:ring-offset-2"
+                                }`}
+                                disabled={regeneratingSummary} // Disable button when processing
+                            >
+                                {"Generate Summary"}
+                            </button>
+                        </div>
                     </>
                 ) : (
                     <p>No chapter found. Please go back to the project.</p>
