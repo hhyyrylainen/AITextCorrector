@@ -191,6 +191,13 @@ async def create_new_project(name: str = Form(), writingStyle: str = Form(), lev
 
     return {"id": created_id}
 
+@app.get("/api/chapters/{chapter_id}")
+async def get_chapter(chapter_id: int):
+    chapter = await database.get_chapter(chapter_id, include_paragraphs=True)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    return chapter
 
 @app.post("/api/chapters/{chapter_id}/regenerateSummary")
 async def regenerate_chapter_summary(chapter_id: int):

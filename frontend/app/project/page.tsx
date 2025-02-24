@@ -80,7 +80,7 @@ function Page() {
 
     // Function to regenerate a chapter summary
     const regenerateSummary = async (chapterId: number) => {
-        setRegeneratingSummary(true)
+        setRegeneratingSummary(true);
         try {
             // Send a POST request to the backend
             const response = await fetch(`/api/chapters/${chapterId}/regenerateSummary`, {
@@ -132,7 +132,7 @@ function Page() {
                                         <div className="flex items-center gap-4">
                                             <span className="font-semibold">{chapter.chapterIndex}.</span>
                                             <Link
-                                                href={`/chapter/${chapter.id}`}
+                                                href={`/chapter?id=${chapter.id}`}
                                                 className="text-blue-500 hover:underline"
                                             >
                                                 {chapter.name}
@@ -141,7 +141,6 @@ function Page() {
                                         {showSummaries && (
                                             <div className="text-gray-600 mb-3">
                                                 {/* Replace "\n" with actual <br /> elements */}
-                                                {/* TODO: add a button to regenerate a summary that exists */}
                                                 {chapter.summary
                                                     ? (
                                                         <div>

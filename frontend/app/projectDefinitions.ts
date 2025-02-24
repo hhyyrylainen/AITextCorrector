@@ -4,9 +4,11 @@ export type Paragraph = {
     partOfChapter: number;
     index: number;
     originalText: string;
-    correctedText?: string; // Optional property
-    manuallyCorrectedText?: string; // Optional property
-    leadingSpace: number; // Defaults to 0 in Python, so should always be a number
+    correctedText?: string;
+    manuallyCorrectedText?: string;
+
+    // Defaults to 0 in Python, so should always be a number
+    leadingSpace: number;
 };
 
 export type Chapter = {
@@ -15,8 +17,12 @@ export type Chapter = {
     chapterIndex: number;
     belongsToProject: number;
     name: string;
-    summary?: string; // Optional property for AI-generated summary
-    paragraphs: Paragraph[]; // List of Paragraph objects
+
+    // Optional property for AI-generated summary
+    summary?: string;
+
+    // List of Paragraph objects
+    paragraphs: Paragraph[];
 };
 
 export type Project = {
@@ -24,5 +30,7 @@ export type Project = {
     name: string;
     stylePrompt: string;
     correctionStrengthLevel: number;
-    chapters: Chapter[]; // List of Chapter objects
+
+    // List of Chapter objects
+    chapters: Chapter[];
 };
