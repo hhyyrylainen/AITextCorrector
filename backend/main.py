@@ -145,6 +145,7 @@ async def get_projects():
 async def get_project(project_id: int):
     return await database.get_project(project_id)
 
+
 @app.post("/api/projects/{project_id}/generateSummaries")
 async def get_project(project_id: int, background_tasks: BackgroundTasks):
     project = await database.get_project(project_id)
@@ -157,6 +158,7 @@ async def get_project(project_id: int, background_tasks: BackgroundTasks):
     ai_manager = await get_ai_manager()
 
     background_tasks.add_task(ai_manager.generate_summaries, project, database)
+
 
 # Need to use names the frontend can use
 # noinspection PyPep8Naming
@@ -188,6 +190,31 @@ async def create_new_project(name: str = Form(), writingStyle: str = Form(), lev
             background_tasks.add_task(ai_manager.generate_summaries, project, database)
 
     return {"id": created_id}
+
+
+@app.post("/api/chapters/{chapter_id}/regenerateSummary")
+async def regenerate_chapter_summary(chapter_id: int):
+    """
+    Endpoint to regenerate the summary for a specific chapter.
+    :param chapter_id: The ID of the chapter to regenerate the summary for.
+    :param background_tasks: FastAPI's background task manager.
+    :return: Success message if the request to regenerate is successfully queued.
+    """
+    chapter = await database.get_chapter(chapter_id, True)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    ai_manager = await get_ai_manager()
+
+    try:
+        await ai_manager.generate_single_summary(chapter)
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail="Error: " + str(e) + " while regenerating summary. Try again later.")
+
+    await database.update_chapter(chapter)
+
+    return {"message": "Summary regenerated"}
 
 
 ######################
