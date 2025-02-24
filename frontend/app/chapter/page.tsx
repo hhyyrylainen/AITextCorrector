@@ -4,6 +4,8 @@ import {useState, useEffect, Suspense} from "react";
 import {useSearchParams} from "next/navigation"; // Hook to access query parameters
 import Link from "next/link";
 
+import ParagraphCorrector from "@components/ParagraphCorrector";
+
 import {Chapter} from "@/app/projectDefinitions";
 
 function Page() {
@@ -19,6 +21,10 @@ function Page() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [summaryMessage, setSummaryMessage] = useState<string | null>(null);
     const [regeneratingSummary, setRegeneratingSummary] = useState(false);
+
+    // Track which paragraphs are in correction mode
+    const [correctionStates, setCorrectionStates] = useState<Record<number, boolean>>({});
+
 
     // Fetch the Chapter data from the backend when `chapterId` is available
     useEffect(() => {
@@ -65,6 +71,22 @@ function Page() {
         }
     };
 
+    const toggleParagraphCorrection = (id: number) => {
+        // Toggle the correction state for the given paragraph ID
+        setCorrectionStates((prev) => ({
+            ...prev,
+            [id]: !prev[id],
+        }));
+    };
+
+    const setParagraphCorrection = (state: boolean) => {
+        setCorrectionStates((prev) => ({
+            ...prev,
+            ...Object.fromEntries(chapter!.paragraphs.map(p => [p.index, state]))
+        }))
+    }
+
+
     if (chapterId == null) {
         return <p>No chapter found. Please go back to the project.</p>
     }
@@ -110,17 +132,37 @@ function Page() {
                                                     </span>
                                                 ))}
                                             </span>
-                                            <Link
-                                                href={`#`}
-                                                className="text-blue-500 hover:underline ms-2"
+                                            <button
+                                                className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
+                                                onClick={() => toggleParagraphCorrection(paragraph.index)}
                                             >
-                                                {"Correct"}
-                                            </Link>
+                                                {correctionStates[paragraph.index] ? "Cancel" : "Correct"}
+                                            </button>
                                         </div>
+                                        {/* Render ParagraphCorrector when correction mode is on */}
+                                        {correctionStates[paragraph.index] && (
+                                            <ParagraphCorrector paragraph={paragraph}/>
+                                        )}
                                     </li>
                                 ))}
                             </ul>
                         </section>
+
+                        <div>
+                            <button
+                                className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
+                                onClick={() => setParagraphCorrection(true)}
+                            >
+                                {"Correct All"}
+                            </button>
+
+                            <button
+                                className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
+                                onClick={() => setParagraphCorrection(false)}
+                            >
+                                {"Collapse All"}
+                            </button>
+                        </div>
 
                         <h2>Summary of Chapter</h2>
                         {/* Summary Section */}
