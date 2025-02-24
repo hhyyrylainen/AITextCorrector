@@ -162,7 +162,7 @@ async def get_project(project_id: int, background_tasks: BackgroundTasks):
 # noinspection PyPep8Naming
 @app.post("/api/projects")
 async def create_new_project(name: str = Form(), writingStyle: str = Form(), levelOfCorrection: int = Form(),
-                             file: UploadFile = File()):
+                             file: UploadFile = File(), background_tasks: BackgroundTasks = BackgroundTasks()):
     content_type = file.content_type
 
     if content_type == "application/epub+zip":
@@ -179,7 +179,13 @@ async def create_new_project(name: str = Form(), writingStyle: str = Form(), lev
     if config.autoSummaries:
         print("Triggering auto summaries for project", created_id)
 
-        # TODO: trigger the summary
+        project = await database.get_project(created_id)
+
+        if project is None:
+            print("Failed to get project after creation. Aborting summary generation.")
+        else:
+            ai_manager = await get_ai_manager()
+            background_tasks.add_task(ai_manager.generate_summaries, project, database)
 
     return {"id": created_id}
 
