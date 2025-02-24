@@ -197,7 +197,6 @@ async def regenerate_chapter_summary(chapter_id: int):
     """
     Endpoint to regenerate the summary for a specific chapter.
     :param chapter_id: The ID of the chapter to regenerate the summary for.
-    :param background_tasks: FastAPI's background task manager.
     :return: Success message if the request to regenerate is successfully queued.
     """
     chapter = await database.get_chapter(chapter_id, True)
@@ -296,9 +295,16 @@ async def update_config(new_config: ConfigModel):
 @app.get("/{path:path}")
 async def serve_other_files(path: str):
     file_path = os.path.join(frontend_build_path, path)
+    with_html_extension = file_path + ".html"
 
     if os.path.exists(file_path):
         return FileResponse(file_path)
+    elif os.path.exists(with_html_extension):
+        # Need to serve specific html subpages so that routing works
+        return FileResponse(with_html_extension)
+    elif os.path.exists(os.path.join(file_path, "index.html")):
+        # Serving index files for each folder
+        return FileResponse(os.path.join(file_path, "index.html"))
     else:
         # Serve index.html for SPA fallback routing
         return FileResponse(os.path.join(frontend_build_path, "index.html"))
