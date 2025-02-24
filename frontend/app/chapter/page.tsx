@@ -99,10 +99,17 @@ function Page() {
                             <ul className="space-y-2">
                                 {chapter.paragraphs.map(paragraph => (
                                     <li key={paragraph.index} className="flex flex-col gap-2">
-                                        {paragraph.leadingSpace > 0 && (<div className="h-2"/>)}
+                                        {paragraph.leadingSpace > 0 && (<div className="h-3"/>)}
                                         <div className="flex items-center gap-4">
                                             <span className="font-semibold min-w-8">{paragraph.index}.</span>
-                                            <span className="text-gray-700 ms-2 flex-grow">{paragraph.originalText}</span>
+                                            <span className="text-gray-700 ms-2 flex-grow">
+                                                {paragraph.originalText.split("\n").map((line, index) => (
+                                                    <span key={index}>
+                                                        {line}
+                                                        <br/>
+                                                    </span>
+                                                ))}
+                                            </span>
                                             <Link
                                                 href={`#`}
                                                 className="text-blue-500 hover:underline ms-2"
@@ -122,7 +129,7 @@ function Page() {
                             <div>
                                 {chapter.summary.split("\n").map((line, index) => (
                                     <span key={index}>
-                                                            {line}
+                                        {line}
                                         <br/>
                                     </span>
                                 ))}
