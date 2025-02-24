@@ -243,6 +243,74 @@ class Database:
             print(f"Error fetching project data: {e}")
             return None
 
+    async def get_chapter(self, chapter_id: int, include_paragraphs: bool = False) -> Chapter | None:
+        """
+        Fetches a chapter by ID. Optionally fetches all associated paragraphs.
+    
+        Args:
+            chapter_id (int): The ID of the chapter to retrieve.
+            include_paragraphs (bool): If True, retrieves associated paragraphs.
+    
+        Returns:
+            Chapter | None: The chapter data, or None if not found.
+        """
+        connection = self._connection
+
+        try:
+            # Fetch the main chapter data
+            async with connection.execute(
+                    """
+                    SELECT id, name, chapterIndex, summary, projectId
+                    FROM chapters
+                    WHERE id = ?
+                    """,
+                    (chapter_id,),
+            ) as chapter_cursor:
+                chapter_data = await chapter_cursor.fetchone()
+
+            # If no chapter is found, return None
+            if not chapter_data:
+                return None
+
+            # Create the Chapter object
+            chapter = Chapter(
+                id=chapter_data["id"],
+                name=chapter_data["name"],
+                chapterIndex=chapter_data["chapterIndex"],
+                summary=chapter_data["summary"],
+                projectId=chapter_data["projectId"],
+                paragraphs=[],
+            )
+
+            # If requested, fetch all associated paragraphs
+            if include_paragraphs:
+                async with connection.execute(
+                        """
+                        SELECT paragraphIndex, originalText, correctedText, manuallyCorrectedText, leadingSpace
+                        FROM paragraphs
+                        WHERE chapterId = ?
+                        ORDER BY paragraphIndex ASC
+                        """,
+                        (chapter_id,),
+                ) as paragraphs_cursor:
+                    chapter.paragraphs = [
+                        Paragraph(
+                            index=row["paragraphIndex"],
+                            originalText=row["originalText"],
+                            correctedText=row["correctedText"],
+                            manuallyCorrectedText=row["manuallyCorrectedText"],
+                            leadingSpace=row["leadingSpace"],
+                            partOfChapter=chapter_id,
+                        ) async for row in paragraphs_cursor
+                    ]
+
+            return chapter
+
+        except Exception as e:
+            # Handle and log errors
+            print(f"Error fetching chapter data: {e}")
+            return None
+
     async def get_chapter_paragraph_text(self, chapter_id: int) -> List[Paragraph]:
         """
         Fetches all paragraphs associated with a given chapter ID. Only returns the primary text.
