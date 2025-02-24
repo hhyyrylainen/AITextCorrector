@@ -243,6 +243,42 @@ class Database:
             print(f"Error fetching project data: {e}")
             return None
 
+    async def get_projects(self) -> List[Project]:
+        """
+        Fetches all the projects from the database. This method retrieves only the project-level data
+        and excludes any associated chapters or paragraphs. Does not fetch style information.
+    
+        Returns:
+            List[Project]: A list of Project objects, or an empty list if no projects are found.
+        """
+        connection = self._connection
+
+        try:
+            # Fetch all projects
+            async with connection.execute(
+                    """
+                    SELECT id, name, correctionStrengthLevel
+                    FROM projects
+                    ORDER BY name ASC
+                    """
+            ) as projects_cursor:
+                projects = [
+                    Project(
+                        id=row["id"],
+                        name=row["name"],
+                        correctionStrengthLevel=row["correctionStrengthLevel"],
+                        stylePrompt="not fetched",
+                        chapters=[]
+                    ) async for row in projects_cursor
+                ]
+
+            return projects
+
+        except Exception as e:
+            # Handle and log database errors (optional logging)
+            print(f"Error fetching projects: {e}")
+            return []
+
     async def get_chapter(self, chapter_id: int, include_paragraphs: bool = False) -> Chapter | None:
         """
         Fetches a chapter by ID. Optionally fetches all associated paragraphs.
