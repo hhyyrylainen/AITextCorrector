@@ -15,6 +15,9 @@ class CorrectionStatus(int, Enum):
     reviewed = 2
     accepted = 3
 
+    # When AI doesn't find anything to correct
+    notRequired = 4
+
 
 class Paragraph(BaseModel):
     partOfChapter: int

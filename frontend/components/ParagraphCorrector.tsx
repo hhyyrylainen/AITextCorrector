@@ -11,6 +11,7 @@ type ParagraphCorrectorProps = {
 export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps) {
     const [paragraphData, setParagraphData] = useState<Paragraph | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
+    const [generating, setGenerating] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [isPolling, setIsPolling] = useState<boolean>(false); // Track polling state
 
@@ -34,6 +35,7 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
     }
 
     async function generateCorrection() {
+        setGenerating(true);
         try {
             const response = await fetch(
                 `/api/chapters/${paragraph.partOfChapter}/paragraphs/${paragraph.index}/generateCorrection`, {
@@ -53,7 +55,7 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
             console.error("Error requesting corrections to paragraph data:", err);
             setError(err instanceof Error ? err.message : "Unknown error");
         } finally {
-            setLoading(false);
+            setGenerating(false);
         }
     }
 
@@ -136,8 +138,8 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
         return (
             <div className="bg-gray-100 p-4 border rounded-md mt-1 w-full flex flex-col items-center">
                 <button className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                        onClick={generateCorrection}>
-                    Generate Correction
+                        onClick={generateCorrection} disabled={generating}>
+                    {generating ? "Generating..." : "Generate Correction"}
                 </button>
             </div>
         );

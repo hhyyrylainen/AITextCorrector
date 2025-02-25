@@ -230,6 +230,31 @@ async def get_paragraph(chapter_id: int, paragraph_index: int):
 
     return paragraph
 
+@app.post("/api/chapters/{chapter_id}/paragraphs/{paragraph_index}/generateCorrection")
+async def generate_correction(chapter_id: int, paragraph_index: int):
+    """
+    Generates a correction for a specific paragraph, but doesn't return it
+    """
+    paragraph = await database.get_paragraph(chapter_id, paragraph_index)
+    if not paragraph:
+        raise HTTPException(status_code=404, detail="Paragraph not found")
+
+    # Need to get the project for the correction strength setting
+    project = await database.get_project_by_chapter(paragraph.partOfChapter)
+
+    config = await database.get_config()
+
+    ai_manager = await get_ai_manager()
+
+    try:
+        await ai_manager.generate_single_correction(paragraph, project.correctionStrengthLevel, config.correctionReRuns)
+
+        await database.update_paragraph(paragraph)
+    except Exception as e:
+        print("Error while generating correction: ", e)
+        raise HTTPException(status_code=500,
+                            detail="Error: " + str(e) + " while generating correction. Try again later.")
+
 ######################
 # General AI endpoints
 ######################
