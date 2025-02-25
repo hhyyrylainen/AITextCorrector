@@ -191,6 +191,7 @@ async def create_new_project(name: str = Form(), writingStyle: str = Form(), lev
 
     return {"id": created_id}
 
+
 @app.get("/api/chapters/{chapter_id}")
 async def get_chapter(chapter_id: int):
     chapter = await database.get_chapter(chapter_id, include_paragraphs=True)
@@ -198,6 +199,7 @@ async def get_chapter(chapter_id: int):
         raise HTTPException(status_code=404, detail="Chapter not found")
 
     return chapter
+
 
 @app.post("/api/chapters/{chapter_id}/regenerateSummary")
 async def regenerate_chapter_summary(chapter_id: int):
@@ -222,6 +224,21 @@ async def regenerate_chapter_summary(chapter_id: int):
 
     return {"message": "Summary regenerated"}
 
+
+@app.get("/api/chapters/{chapter_id}/paragraphsWithCorrections")
+async def regenerate_chapter_summary(chapter_id: int):
+    """
+    Endpoint to get a list of paragraphs with corrections for a specific chapter.
+    :param chapter_id: The ID of the chapter to regenerate the summary for.
+    :return: On success a list of paragraph ids with corrections.
+    """
+    try:
+        return await database.get_paragraphs_ids_needing_actions(chapter_id)
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail="Error: " + str(e) + " while getting paragraphs with corrections.")
+
+
 @app.get("/api/chapters/{chapter_id}/paragraphs/{paragraph_index}")
 async def get_paragraph(chapter_id: int, paragraph_index: int):
     paragraph = await database.get_paragraph(chapter_id, paragraph_index)
@@ -229,6 +246,7 @@ async def get_paragraph(chapter_id: int, paragraph_index: int):
         raise HTTPException(status_code=404, detail="Paragraph not found")
 
     return paragraph
+
 
 @app.post("/api/chapters/{chapter_id}/paragraphs/{paragraph_index}/generateCorrection")
 async def generate_correction(chapter_id: int, paragraph_index: int):
@@ -254,6 +272,7 @@ async def generate_correction(chapter_id: int, paragraph_index: int):
         print("Error while generating correction: ", e)
         raise HTTPException(status_code=500,
                             detail="Error: " + str(e) + " while generating correction. Try again later.")
+
 
 ######################
 # General AI endpoints

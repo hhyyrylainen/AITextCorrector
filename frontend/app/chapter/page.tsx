@@ -98,6 +98,36 @@ function Page() {
         }
     }
 
+    const openParagraphsNeedingCorrection = async () => {
+        try {
+            const response = await fetch(`/api/chapters/${chapterId}/paragraphsWithCorrections`,);
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.error) {
+                    setErrorMessage(data.error);
+                } else if (!Array.isArray(data)) {
+                    setErrorMessage("Failed to get list of paragraphs needing corrections. Please try again.");
+                } else {
+                    setCorrectionStates((prev) => {
+
+                        const result = {...prev};
+
+                        for (const id of data) {
+                            result[id] = true;
+                        }
+
+                        return result;
+                    });
+                }
+            } else {
+                setErrorMessage("Failed to get list of paragraphs needing corrections. Please try again.");
+            }
+        } catch {
+            setErrorMessage("An error occurred while fetching paragraphs list. Please try again.");
+        }
+    }
+
     const toggleParagraphCorrection = (id: number) => {
         // Toggle the correction state for the given paragraph ID
         setCorrectionStates((prev) => ({
@@ -183,12 +213,19 @@ function Page() {
                             </div>
                         )}
 
-                        <div className={"max-w-2xl"}>
+                        <div className={"max-w-3xl"}>
+                            <button
+                                className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
+                                onClick={openParagraphsNeedingCorrection}
+                            >
+                                {"Correct All"}
+                            </button>
+
                             <button
                                 className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
                                 onClick={() => setParagraphCorrection(true)}
                             >
-                                {"Correct All"}
+                                {"Expand All"}
                             </button>
 
                             <button
