@@ -324,7 +324,7 @@ class Database:
             if include_paragraphs:
                 async with connection.execute(
                         """
-                        SELECT paragraphIndex, originalText, correctedText, manuallyCorrectedText, leadingSpace, correctionStatus,
+                        SELECT paragraphIndex, originalText, correctedText, manuallyCorrectedText, leadingSpace, correctionStatus
                         FROM paragraphs
                         WHERE chapterId = ?
                         ORDER BY paragraphIndex ASC
@@ -417,6 +417,37 @@ class Database:
                 raise ValueError(f"No chapter found with ID {chapter.id}")
 
             await connection.commit()
+
+    async def get_paragraph(self, chapter_id: int, paragraph_index: int) -> Paragraph | None:
+        connection = self._connection
+
+        try:
+            async with connection.execute(
+                    """
+                    SELECT originalText, leadingSpace, correctionStatus, correctedText, manuallyCorrectedText
+                    FROM paragraphs
+                    WHERE chapterId = ? AND paragraphIndex = ?
+                    """,
+                    (chapter_id, paragraph_index),
+            ) as paragraph_cursor:
+                paragraph_data = await paragraph_cursor.fetchone()
+
+            if not paragraph_data:
+                return None
+
+            return Paragraph(
+                partOfChapter=chapter_id,
+                index=paragraph_index,
+                originalText=paragraph_data["originalText"],
+                leadingSpace=paragraph_data["leadingSpace"],
+                correctedText=paragraph_data["correctedText"],
+                manuallyCorrectedText=paragraph_data["manuallyCorrectedText"],
+                correctionStatus=paragraph_data["correctionStatus"],
+            )
+
+        except Exception as e:
+            print(f"Error fetching paragraph data: {e}")
+            return None
 
     async def get_config(self) -> ConfigModel:
         """

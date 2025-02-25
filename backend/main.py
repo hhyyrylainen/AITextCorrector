@@ -222,6 +222,13 @@ async def regenerate_chapter_summary(chapter_id: int):
 
     return {"message": "Summary regenerated"}
 
+@app.get("/api/chapters/{chapter_id}/paragraphs/{paragraph_index}")
+async def get_paragraph(chapter_id: int, paragraph_index: int):
+    paragraph = await database.get_paragraph(chapter_id, paragraph_index)
+    if not paragraph:
+        raise HTTPException(status_code=404, detail="Paragraph not found")
+
+    return paragraph
 
 ######################
 # General AI endpoints
