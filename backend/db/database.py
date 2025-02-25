@@ -245,6 +245,43 @@ class Database:
             print(f"Error fetching project data: {e}")
             return None
 
+    async def get_project_by_chapter(self, chapter_id: int) -> Project | None:
+        """
+        Fetches the primary data for a project, based on a chapter it contains.
+
+        Args:
+            chapter_id (int): The ID of the chapter whose project to retrieve.
+
+        Returns:
+            Project | None: The project data, or None if no project is found.
+        """
+        connection = self._connection
+
+        try:
+            async with connection.execute(
+                    """
+                SELECT id, name, correctionStrengthLevel, stylePrompt
+                FROM projects
+                WHERE id = (SELECT projectId FROM chapters WHERE id = ?)
+                """,
+                    (chapter_id,),
+            ) as project_cursor:
+                project_data = await project_cursor.fetchone()
+
+            # If no project data is found, return None
+            if not project_data:
+                return None
+
+            project = Project(id=project_data[0], name=project_data[1], correctionStrengthLevel=project_data[2],
+                              stylePrompt=project_data[3], chapters=[])
+
+            return project
+
+        except Exception as e:
+            # Handle and log database errors (optional logging)
+            print(f"Error fetching project by chapter: {e}")
+            return None
+
     async def get_projects(self) -> List[Project]:
         """
         Fetches all the projects from the database. This method retrieves only the project-level data
@@ -448,6 +485,29 @@ class Database:
         except Exception as e:
             print(f"Error fetching paragraph data: {e}")
             return None
+
+    async def update_paragraph(self, paragraph: Paragraph):
+        """
+        Updates paragraph, but doesn't update the original text nor the ID fields.
+
+        :param paragraph: paragraph object with updated details.
+        """
+        async with self._lock:  # Ensure thread safety
+            connection = self._connection
+
+            result = await connection.execute(
+                """
+                UPDATE paragraphs
+                SET correctedText = ?, manuallyCorrectedText = ?, correctionStatus = ?, leadingSpace = ?
+                WHERE partOfChapter = ? AND paragraphIndex = ?
+                """,
+                (paragraph.correctedText, paragraph.manuallyCorrectedText, paragraph.correctionStatus,
+                 paragraph.leadingSpace, paragraph.partOfChapter, paragraph.index)
+            )
+            if result.rowcount == 0:
+                raise ValueError(f"No paragraph found with ID {paragraph.partOfChapter}-{paragraph.index}")
+
+            await connection.commit()
 
     async def get_config(self) -> ConfigModel:
         """
