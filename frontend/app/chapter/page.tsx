@@ -21,6 +21,9 @@ function Page() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [summaryMessage, setSummaryMessage] = useState<string | null>(null);
     const [regeneratingSummary, setRegeneratingSummary] = useState(false);
+    const [generatingCorrections, setGeneratingCorrections] = useState(false);
+
+    const [showExportMode, setShowExportMode] = useState(false);
 
     // Track which paragraphs are in correction mode
     const [correctionStates, setCorrectionStates] = useState<Record<number, boolean>>({});
@@ -70,6 +73,30 @@ function Page() {
             setRegeneratingSummary(false);
         }
     };
+
+    const generateCorrections = async () => {
+        setGeneratingCorrections(true);
+        try {
+            const response = await fetch(`/api/chapters/${chapterId}/generateCorrections`, {
+                method: "POST",
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.error) {
+                    setErrorMessage(data.error);
+                } else {
+                    setSummaryMessage("Correction generation for all paragraphs has started.");
+                }
+            } else {
+                setErrorMessage("Failed to generate corrections. Please try again.");
+            }
+        } catch {
+            setErrorMessage("An error occurred while generating corrections. Please try again.");
+        } finally {
+            setGeneratingCorrections(false);
+        }
+    }
 
     const toggleParagraphCorrection = (id: number) => {
         // Toggle the correction state for the given paragraph ID
@@ -149,6 +176,13 @@ function Page() {
                             </ul>
                         </section>
 
+                        {/* second error display to see it near these buttons as well */}
+                        {errorMessage && (
+                            <div className="text-red-600 bg-red-100 p-2 rounded-md">
+                                {errorMessage}
+                            </div>
+                        )}
+
                         <div className={"max-w-2xl"}>
                             <button
                                 className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
@@ -163,7 +197,29 @@ function Page() {
                             >
                                 {"Collapse All"}
                             </button>
+
+                            <button
+                                className={`ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md ${
+                                    generatingCorrections ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                        : "bg-gray-200 text-gray-600 hover:bg-gray-300 "
+                                }`}
+                                onClick={generateCorrections}
+                                disabled={generatingCorrections} // Disable button when processing
+                            >
+                                {"Generate Corrections"}
+                            </button>
+
+                            <button
+                                className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
+                                onClick={() => setShowExportMode(!showExportMode)}
+                            >
+                                {"Export..."}
+                            </button>
                         </div>
+
+                        {showExportMode && (
+                            <p>Export corrections from this chapter in bulk. TODO: implement this!</p>
+                        )}
 
                         <div className={"max-w-2xl"}>
                             <h2>Summary of Chapter</h2>
