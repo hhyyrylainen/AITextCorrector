@@ -65,7 +65,10 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
             return "bg-green-100";
 
         if (paragraphData.correctionStatus == CorrectionStatus.reviewed)
-            return "bg-blue-100";
+            return "bg-yellow-100";
+
+        if (paragraphData.correctionStatus == CorrectionStatus.notRequired)
+            return "bg-blue-200";
 
         return "bg-gray-100";
     }
