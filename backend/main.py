@@ -225,6 +225,28 @@ async def regenerate_chapter_summary(chapter_id: int):
     return {"message": "Summary regenerated"}
 
 
+@app.post("/api/chapters/{chapter_id}/generateCorrections")
+async def generate_chapter_corrections(chapter_id: int, background_tasks: BackgroundTasks = BackgroundTasks()):
+    """
+    Endpoint to request generations of all missing corrections for a specific chapter.
+    :param chapter_id: The ID of the chapter to regenerate the summary for.
+    :param background_tasks: Background tasks object to add the task to.
+    :return: Success message if the request to generate is successfully queued.
+    """
+    chapter = await database.get_chapter(chapter_id, True)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    project = await database.get_project_by_chapter(chapter.id)
+
+    ai_manager = await get_ai_manager()
+
+    background_tasks.add_task(ai_manager.generate_corrections, chapter, database, project.correctionStrengthLevel)
+    print("Triggered correction generation for chapter:", chapter.name)
+
+    return {"message": "Correction generation queued"}
+
+
 @app.get("/api/chapters/{chapter_id}/paragraphsWithCorrections")
 async def regenerate_chapter_summary(chapter_id: int):
     """
