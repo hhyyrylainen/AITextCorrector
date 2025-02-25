@@ -1,5 +1,13 @@
 // Project type specifications that should match db/project.py file
 
+// Enum for correction status
+export enum CorrectionStatus {
+    notGenerated = 0, // Default state
+    generated = 1,
+    reviewed = 2,
+    accepted = 3,
+}
+
 export type Paragraph = {
     partOfChapter: number;
     index: number;
@@ -9,6 +17,9 @@ export type Paragraph = {
 
     // Defaults to 0 in Python, so should always be a number
     leadingSpace: number;
+
+    // Correction status with default as notGenerated
+    correctionStatus: CorrectionStatus;
 };
 
 export type Chapter = {

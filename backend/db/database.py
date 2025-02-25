@@ -9,9 +9,9 @@ from typing import List
 import aiosqlite
 
 from .config import ConfigModel, default_config
-from .project import Project, Chapter, Paragraph
+from .project import Project, Chapter, Paragraph, CorrectionStatus
 
-DATABASE_VERSION = 3
+DATABASE_VERSION = 4
 
 
 def get_db_path() -> Path:
@@ -53,6 +53,8 @@ class Database:
     _config_cache_timestamp = None  # Timestamp of when the cache was last updated
     _CACHE_TTL = 5  # Time to live for cache (in seconds)
 
+    # TODO: figure out why it seems like this method runs twice from the singleton instance, does the rvunicorn run
+    # multiple instances of the app?
     def __new__(cls, *args, **kwargs):
         """Ensure only one instance of the Database class exists."""
         if not cls._instance:
@@ -114,7 +116,6 @@ class Database:
 
                 # Ensure database is migrated to the latest version
                 while config["version"] < DATABASE_VERSION:
-                    # TODO: implement migrations
                     print(
                         f"Database migration required (current version: {config['version']}, expected version: {DATABASE_VERSION})")
 
@@ -162,7 +163,7 @@ class Database:
                             """
                             INSERT INTO paragraphs (
                                 chapterId, paragraphIndex, originalText,
-                                correctedText, manuallyCorrectedText, leadingSpace
+                                correctedText, manuallyCorrectedText, leadingSpace, correctionStatus,
                             )
                             VALUES (?, ?, ?, ?, ?, ?)
                             """,
@@ -173,6 +174,7 @@ class Database:
                                 paragraph.correctedText,
                                 paragraph.manuallyCorrectedText,
                                 paragraph.leadingSpace,
+                                paragraph.correctionStatus,
                             )
                         )
 
@@ -322,7 +324,7 @@ class Database:
             if include_paragraphs:
                 async with connection.execute(
                         """
-                        SELECT paragraphIndex, originalText, correctedText, manuallyCorrectedText, leadingSpace
+                        SELECT paragraphIndex, originalText, correctedText, manuallyCorrectedText, leadingSpace, correctionStatus,
                         FROM paragraphs
                         WHERE chapterId = ?
                         ORDER BY paragraphIndex ASC
@@ -336,6 +338,7 @@ class Database:
                             correctedText=row["correctedText"],
                             manuallyCorrectedText=row["manuallyCorrectedText"],
                             leadingSpace=row["leadingSpace"],
+                            correctionStatus=row["correctionStatus"],
                             partOfChapter=chapter_id,
                         ) async for row in paragraphs_cursor
                     ]
@@ -500,10 +503,14 @@ class Database:
 
         if existing_config["version"] == 2:
             await db.execute("""
-                CREATE UNIQUE INDEX idx_unique_project_name ON Projects (name);
+                CREATE UNIQUE INDEX idx_unique_project_name ON projects (name);
             """)
 
             await self._on_version_migrated(db, existing_config, 3)
+        if existing_config["version"] == 3:
+            await db.execute("ALTER TABLE paragraphs ADD COLUMN correctionStatus INTEGER NOT NULL DEFAULT 0")
+
+            await self._on_version_migrated(db, existing_config, 4)
         else:
             raise Exception(f"Unknown database version: {existing_config['version']}")
 
@@ -557,6 +564,7 @@ class Database:
                     correctedText TEXT,
                     manuallyCorrectedText TEXT,
                     leadingSpace INTEGER NOT NULL DEFAULT 0,
+                    correctionStatus INTEGER NOT NULL DEFAULT 0,
                     FOREIGN KEY (chapterId) REFERENCES Chapters (id) ON DELETE CASCADE,
                     PRIMARY KEY (chapterId, paragraphIndex)
                 );

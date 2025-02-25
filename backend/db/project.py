@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Optional, List
 
 from pydantic import BaseModel
@@ -6,6 +7,14 @@ from backend.utils.epub import Chapter as EpubChapter
 
 
 # Matching data is in app/projectDefinitions.ts
+
+# Enum for correction status
+class CorrectionStatus(int, Enum):
+    notGenerated = 0  # Default state
+    generated = 1
+    reviewed = 2
+    accepted = 3
+
 
 class Paragraph(BaseModel):
     partOfChapter: int
@@ -18,6 +27,9 @@ class Paragraph(BaseModel):
 
     # If there is some leading space (as detected from extraction) then this is above 0
     leadingSpace: int = 0
+
+    # Correction status for the paragraph
+    correctionStatus: CorrectionStatus = CorrectionStatus.notGenerated  # Default value
 
 
 class Chapter(BaseModel):
