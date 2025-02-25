@@ -22,6 +22,7 @@ function Page() {
     const [summaryMessage, setSummaryMessage] = useState<string | null>(null);
     const [regeneratingSummary, setRegeneratingSummary] = useState(false);
     const [generatingCorrections, setGeneratingCorrections] = useState(false);
+    const [generationRequested, setGenerationRequested] = useState(false);
 
     const [showExportMode, setShowExportMode] = useState(false);
 
@@ -86,7 +87,8 @@ function Page() {
                 if (data.error) {
                     setErrorMessage(data.error);
                 } else {
-                    setSummaryMessage("Correction generation for all paragraphs has started.");
+                    setErrorMessage("Correction generation for all paragraphs has started. It will take many minutes.");
+                    setGenerationRequested(true);
                 }
             } else {
                 setErrorMessage("Failed to generate corrections. Please try again.");
@@ -241,9 +243,9 @@ function Page() {
                                         : "bg-gray-200 text-gray-600 hover:bg-gray-300 "
                                 }`}
                                 onClick={generateCorrections}
-                                disabled={generatingCorrections} // Disable button when processing
+                                disabled={generatingCorrections || generationRequested} // Disable button when processing
                             >
-                                {"Generate Corrections"}
+                                {generationRequested ? "Generating..." : "Generate Corrections"}
                             </button>
 
                             <button
