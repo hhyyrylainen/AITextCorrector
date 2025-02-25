@@ -499,7 +499,7 @@ class Database:
                 """
                 UPDATE paragraphs
                 SET correctedText = ?, manuallyCorrectedText = ?, correctionStatus = ?, leadingSpace = ?
-                WHERE partOfChapter = ? AND paragraphIndex = ?
+                WHERE chapterId = ? AND paragraphIndex = ?
                 """,
                 (paragraph.correctedText, paragraph.manuallyCorrectedText, paragraph.correctionStatus,
                  paragraph.leadingSpace, paragraph.partOfChapter, paragraph.index)
