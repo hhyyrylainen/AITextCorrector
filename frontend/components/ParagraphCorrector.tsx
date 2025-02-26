@@ -15,6 +15,8 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
     const [error, setError] = useState<string | null>(null);
     const [isPolling, setIsPolling] = useState<boolean>(false); // Track polling state
 
+    const [isProcessing, setIsProcessing] = useState<boolean>(false);
+
     // Function to fetch paragraph data from the backend
     async function fetchParagraphData(partOfChapter: number, index: number) {
         try {
@@ -113,7 +115,6 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
         };
     }, [paragraphData?.correctionStatus, paragraph.partOfChapter, paragraph.index]);
 
-
     useEffect(() => {
         // Fetch paragraph data when the component mounts
         fetchParagraphData(paragraph.partOfChapter, paragraph.index);
@@ -155,12 +156,40 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
     return (
         <div className={`${getBackgroundColour(paragraphData)} p-4 border rounded-md mt-1 w-full`}>
             <textarea
+                disabled={isProcessing}
                 className="w-full p-2 border border-gray-300 rounded-md"
                 rows={4}
                 defaultValue={paragraphData.originalText}
             />
-            <button className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
+            <textarea
+                disabled={isProcessing || generating}
+                className="w-full p-2 border border-gray-300 rounded-md"
+                rows={4}
+                defaultValue={paragraphData.correctedText}
+            />
+            <button
+                disabled={isProcessing || generating}
+                className="mt-2 px-4 py-2 mx-1 bg-green-600 text-white hover:bg-green-800 rounded-md  focus:ring-offset-2">
+                Approve
+            </button>
+
+            <button
+                disabled={isProcessing || generating}
+                className="mt-2 px-4 py-2 mx-1 bg-red-500 text-white hover:bg-red-700 rounded-md  focus:ring-offset-2">
+                Reject
+            </button>
+
+            <button
+                disabled={isProcessing || generating}
+                className="mt-2 px-4 py-2 mx-1 bg-blue-500 text-white rounded-md hover:bg-blue-600">
                 Save Correction
+            </button>
+
+            <button
+                disabled={isProcessing || generating}
+                onClick={generateCorrection}
+                className="mt-2 px-4 py-2 mx-1 bg-gray-300 text-gray-700 hover:bg-gray-200 rounded-md  focus:ring-offset-2">
+                {generating ? "Regenerating..." : "Regenerate Correction"}
             </button>
         </div>
     );
