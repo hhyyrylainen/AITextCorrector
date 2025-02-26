@@ -64,6 +64,8 @@ TEXT_CORRECTION_PROMPT_MAX = (
     "Here are the text paragraphs to correct:\n"
     "---\n")
 
+# Lower temperature makes less creative answers, and hopefully makes the text correction more reliable
+CORRECTION_MODEL_TEMPERATURE = 0.7
 MAX_TECHNICAL_RETRIES = 2
 
 EXTRA_RECOMMENDED_MODELS = ["deepseek-r1:14b"]
@@ -131,26 +133,41 @@ class AIManager:
         print("Generating corrections for project:", project.name)
 
         for chapter in project.chapters:
-            await self.generate_corrections(await database.get_chapter(chapter.id, True), database,
-                                            project.correctionStrength)
+            try:
+                # This doesn't require a recursively fetched project, so we need to fetch the chapters here again
+                fully_loaded_chapter = await database.get_chapter(chapter.id, True)
+
+                await self.generate_corrections(fully_loaded_chapter, database, project.correctionStrengthLevel)
+            except Exception as e:
+                print("Error generating corrections for chapter:", chapter.name, "with error:", e)
+                continue
 
     async def generate_corrections(self, chapter: Chapter, database: Database, correction_strength: int):
         if not chapter.paragraphs:
             raise Exception("Cannot generate corrections for chapter with no paragraphs")
 
-        print("Generating corrections for chapter:", chapter.name)
+        print(f"Generating corrections for chapter {chapter.chapterIndex}:", chapter.name)
 
         config = await database.get_config()
 
         paragraphs_to_correct = [paragraph for paragraph in chapter.paragraphs if
                                  paragraph.correctionStatus == CorrectionStatus.notGenerated]
 
+        if len(paragraphs_to_correct) < 1:
+            print("No paragraphs to correct, skipping chapter:", chapter.name)
+            return
+
         for group in AIManager.chunked_paragraphs(paragraphs_to_correct, config.simultaneousCorrectionSize):
 
             print("Correcting paragraph group with size:", len(group), "and total character count:", sum(
                 [len(paragraph.originalText) for paragraph in group]))
 
-            await self._generate_correction(group, correction_strength, config.correctionReRuns)
+            try:
+                await self._generate_correction(group, correction_strength, config.correctionReRuns)
+            except Exception as e:
+                print("Error generating correction for group with error:", e)
+                print("Ignoring this group and continuing with the rest of the chapter...")
+                continue
 
             for paragraph in group:
                 await database.update_paragraph(paragraph)
@@ -212,15 +229,20 @@ class AIManager:
             print("Invalid correction strength, using medium prompt!")
             prompt = TEXT_CORRECTION_PROMPT_MEDIUM
 
+        # Adjust temperature for the model when doing corrections
+        # TODO: could try with an increased context size and a vastly higher max corrections at once setting
+        extra_options = {"temperature": CORRECTION_MODEL_TEMPERATURE}
+
         text = "---".join([paragraph.originalText for paragraph in paragraph_bundle]) + "\n---"
 
         corrections = None
         corrections_history: List[List[str]] = []
 
+        technical_retries = MAX_TECHNICAL_RETRIES
+
         while True:
-            technical_retries = MAX_TECHNICAL_RETRIES
             while True:
-                task = Job(partial(self._prompt_chat, prompt + text, self.model, None, True))
+                task = Job(partial(self._prompt_chat, prompt + text, self.model, extra_options, True))
 
                 self.job_queue.submit(task)
                 response = await task
@@ -249,6 +271,9 @@ class AIManager:
 
                 # No need for technical retry
                 break
+
+            # Restore some technical retries for another re-run (but don't go over a limit)
+            technical_retries = min(technical_retries + MAX_TECHNICAL_RETRIES // 2, MAX_TECHNICAL_RETRIES)
 
             corrections_history.append(corrections)
 
@@ -296,6 +321,10 @@ class AIManager:
 
             # Update correction status for paragraphs that were missing the status
             if paragraph.correctionStatus == CorrectionStatus.notGenerated:
+                paragraph.correctionStatus = CorrectionStatus.generated
+
+            # Reset rejected status if there's new text
+            if paragraph.correctionStatus == CorrectionStatus.rejected and paragraph.correctedText != correction:
                 paragraph.correctionStatus = CorrectionStatus.generated
 
             if correction == paragraph.originalText:
@@ -461,7 +490,9 @@ def is_ai_preamble(text: str) -> bool:
     """
     as_lower = text.lower()
 
-    return as_lower.startswith("here are the corrected text") or as_lower.startswith(
-        "here are the corrected paragraphs") or as_lower.startswith(
-        "here are the corrected chapters") or as_lower.startswith(
-        "here are the corrections applied") or as_lower.startswith("here are the text paragraphs")
+    return (as_lower.startswith("here are the corrected text") or
+            as_lower.startswith("here are the corrected paragraphs") or
+            as_lower.startswith("here are the corrected chapters") or
+            as_lower.startswith("here are the corrections applied") or
+            as_lower.startswith("here are the text paragraphs") or
+            as_lower.startswith("here is the corrected"))
