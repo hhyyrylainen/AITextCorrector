@@ -160,6 +160,26 @@ async def get_project(project_id: int, background_tasks: BackgroundTasks):
     background_tasks.add_task(ai_manager.generate_summaries, project, database)
 
 
+@app.post("/api/projects/{project_id}/generateCorrections")
+async def generate_project_corrections(project_id: int, background_tasks: BackgroundTasks = BackgroundTasks()):
+    """
+    Endpoint to request generations of all missing corrections for a specific project. This takes really long.
+    :param project_id: The ID of the project to generate corrections for.
+    :param background_tasks: Background tasks object to add the task to.
+    :return: Success message if the request to generate is successfully queued.
+    """
+    project = await database.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    ai_manager = await get_ai_manager()
+
+    background_tasks.add_task(ai_manager.generate_corrections_for_project, project, database)
+    print("Triggered correction generation for entire project:", project.name)
+
+    return {"message": "Correction generation queued"}
+
+
 # Need to use names the frontend can use
 # noinspection PyPep8Naming
 @app.post("/api/projects")
@@ -229,7 +249,7 @@ async def regenerate_chapter_summary(chapter_id: int):
 async def generate_chapter_corrections(chapter_id: int, background_tasks: BackgroundTasks = BackgroundTasks()):
     """
     Endpoint to request generations of all missing corrections for a specific chapter.
-    :param chapter_id: The ID of the chapter to regenerate the summary for.
+    :param chapter_id: The ID of the chapter to generate corretions for.
     :param background_tasks: Background tasks object to add the task to.
     :return: Success message if the request to generate is successfully queued.
     """

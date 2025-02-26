@@ -7,6 +7,7 @@ export enum CorrectionStatus {
     reviewed = 2,
     accepted = 3,
     notRequired = 4,
+    rejected = 5,
 }
 
 export type Paragraph = {
