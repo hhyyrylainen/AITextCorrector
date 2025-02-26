@@ -285,6 +285,7 @@ class AIManager:
         corrections = AIManager.pick_best_history(corrections_history, corrections)
 
         needed_corrections = 0
+        perfect_already = 0
 
         # Apply the corrections
         index = 0
@@ -299,12 +300,13 @@ class AIManager:
 
             if correction == paragraph.originalText:
                 paragraph.correctedText = None
+                perfect_already += 1
 
                 # Set no correction required status if it makes sense
                 if paragraph.correctionStatus != CorrectionStatus.accepted and paragraph.correctionStatus != CorrectionStatus.reviewed:
                     paragraph.correctionStatus = CorrectionStatus.notRequired
 
-                print("No correction needed for paragraph:", paragraph.index, "in chapter:", paragraph.partOfChapter)
+                # print("No correction needed for paragraph:", paragraph.index, "in chapter:", paragraph.partOfChapter)
             else:
                 paragraph.correctedText = correction
                 needed_corrections += 1
@@ -313,10 +315,10 @@ class AIManager:
                     paragraph.correctionStatus = CorrectionStatus.generated
 
         if needed_corrections == 0:
-            print("No corrections needed for paragraph bundle")
+            print("No corrections needed for paragraph bundle in chapter:", paragraph_bundle[0].partOfChapter, )
         else:
-            print("Needed corrections in", needed_corrections, "paragraph(s) in chapter:",
-                  paragraph_bundle[0].partOfChapter)
+            print("Needed corrections in", needed_corrections, "paragraph(s),", perfect_already,
+                  "were perfect already, in chapter:", paragraph_bundle[0].partOfChapter)
 
     def _prompt_chat(self, message, model, extra_options=None, remove_think=False) -> str:
         self.currently_running = True
