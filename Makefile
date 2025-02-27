@@ -13,7 +13,7 @@ requirements:
 	(source .venv/bin/activate && cd backend && pip install -r requirements.txt)
 
 run-backend:
-	(source .venv/bin/activate && cd backend && uvicorn main:app --reload)
+	(source .venv/bin/activate && cd backend && uvicorn main:app --reload --timeout-keep-alive 160)
 
 .PHONY: build-frontend run run-backend requirements frontend-dev-server
 
