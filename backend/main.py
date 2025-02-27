@@ -315,6 +315,7 @@ async def generate_correction(chapter_id: int, paragraph_index: int):
         raise HTTPException(status_code=500,
                             detail="Error: " + str(e) + " while generating correction. Try again later.")
 
+
 @app.post("/api/chapters/{chapter_id}/paragraphs/{paragraph_index}/clear")
 async def clear_paragraph_data(chapter_id: int, paragraph_index: int):
     """
@@ -333,6 +334,7 @@ async def clear_paragraph_data(chapter_id: int, paragraph_index: int):
     except Exception as e:
         raise HTTPException(status_code=500,
                             detail="Error: " + str(e) + " while saving paragraph. Try again later.")
+
 
 @app.post("/api/chapters/{chapter_id}/paragraphs/{paragraph_index}/saveManual")
 async def paragraph_save_manual(chapter_id: int, paragraph_index: int, request: Dict):
@@ -355,6 +357,54 @@ async def paragraph_save_manual(chapter_id: int, paragraph_index: int, request: 
         paragraph.manuallyCorrectedText = None
     else:
         paragraph.correctionStatus = CorrectionStatus.reviewed
+
+    try:
+        await database.update_paragraph(paragraph)
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail="Error: " + str(e) + " while saving paragraph. Try again later.")
+
+
+@app.post("/api/chapters/{chapter_id}/paragraphs/{paragraph_index}/approve")
+async def paragraph_approve(chapter_id: int, paragraph_index: int, request: Dict):
+    """
+    Approves a paragraph and optionally saves a manual edit for it
+    """
+    text: str | None = request.get("correctedText", None)
+
+    if text is not None and len(text) < 1:
+        text = None
+
+    paragraph = await database.get_paragraph(chapter_id, paragraph_index)
+    if not paragraph:
+        raise HTTPException(status_code=404, detail="Paragraph not found")
+
+    if text is not None:
+        paragraph.manuallyCorrectedText = text
+
+        # If matches AI then reset
+        if paragraph.manuallyCorrectedText == paragraph.correctedText:
+            paragraph.manuallyCorrectedText = None
+
+    paragraph.correctionStatus = CorrectionStatus.accepted
+
+    try:
+        await database.update_paragraph(paragraph)
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail="Error: " + str(e) + " while saving paragraph. Try again later.")
+
+
+@app.post("/api/chapters/{chapter_id}/paragraphs/{paragraph_index}/reject")
+async def paragraph_reject(chapter_id: int, paragraph_index: int):
+    """
+    Rejects a paragraph
+    """
+    paragraph = await database.get_paragraph(chapter_id, paragraph_index)
+    if not paragraph:
+        raise HTTPException(status_code=404, detail="Paragraph not found")
+
+    paragraph.correctionStatus = CorrectionStatus.rejected
 
     try:
         await database.update_paragraph(paragraph)
