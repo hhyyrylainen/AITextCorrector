@@ -164,7 +164,7 @@ class AIManager:
                                  paragraph.correctionStatus == CorrectionStatus.notGenerated]
 
         if len(paragraphs_to_correct) < 1:
-            print("No paragraphs to correct, skipping chapter:", chapter.name)
+            print(f"No paragraphs to correct, skipping chapter {chapter.chapterIndex}:", chapter.name)
             return
 
         print(f"Generating corrections for chapter {chapter.chapterIndex}:", chapter.name)
@@ -379,67 +379,70 @@ def extract_corrections(paragraph_bundle: List[Paragraph], response: str) -> Lis
     # Remove blank parts
     parts = [part for part in parts if len(part) > 0]
 
+    original_count = len(parts)
+
+    if len(parts) == len(paragraph_bundle):
+        return parts
+
     # If we end up with different number of parts than paragraphs, then we are in trouble
-    if len(parts) != len(paragraph_bundle):
-        # Remove any preface the AI may have added
-        if len(parts) - 1 == len(paragraph_bundle) and is_ai_preamble(parts[0]):
-            parts = parts[1:]
-            return parts
 
-        # Remove pre-amble as it is going to be hard for the further processing
-        if len(parts) > 1 and is_ai_preamble(parts[0]):
-            parts = parts[1:]
+    # Remove any preface the AI may have added
+    if len(parts) - 1 == len(paragraph_bundle) and is_ai_preamble(parts[0]):
+        parts = parts[1:]
+        return parts
 
-        # Delete exactly duplicated parts
-        parts = list(dict.fromkeys(parts))  # Preserves order
+    # Remove pre-amble as it is going to be hard for the further processing
+    if len(parts) > 1 and is_ai_preamble(parts[0]):
+        parts = parts[1:]
 
-        if len(parts) == len(paragraph_bundle):
-            return parts
+    # Delete exactly duplicated parts
+    parts = list(dict.fromkeys(parts))  # Preserves order
 
-        # Handle the case where the AI might just be splitting things on empty lines
-        line_parts = [section.strip() for part in parts for section in part.split("\n\n")]
+    if len(parts) == len(paragraph_bundle):
+        return parts
 
-        # Remove any pre-amble that is visible now, and hope there were two spaces separating it so that it doesn't
-        # accidentally remove the first real part here
-        if len(line_parts) > 1 and is_ai_preamble(line_parts[0]):
-            line_parts = line_parts[1:]
+    # Handle the case where the AI might just be splitting things on empty lines
+    line_parts = [section.strip() for part in parts for section in part.split("\n\n")]
 
-        if len(line_parts) == len(paragraph_bundle):
+    # Remove any pre-amble that is visible now, and hope there were two spaces separating it so that it doesn't
+    # accidentally remove the first real part here
+    if len(line_parts) > 1 and is_ai_preamble(line_parts[0]):
+        line_parts = line_parts[1:]
+
+    if len(line_parts) == len(paragraph_bundle):
+        return line_parts
+    else:
+        # Try splitting even harder on the parts
+        line_parts = [section.strip() for part in line_parts for section in part.split("\n")]
+
+        # Hopefully preamble cannot appear here anymore...
+
+        # Check against accidentally accepting an AI correction summary paragraphs as part of the corrections
+        if len(line_parts) == len(paragraph_bundle) and not is_ai_corrections_summary(line_parts):
             return line_parts
-        else:
-            # Try splitting even harder on the parts
-            line_parts = [section.strip() for part in line_parts for section in part.split("\n")]
 
-            # Hopefully preamble cannot appear here anymore...
+    # Try a different separator
+    parts = [part.strip() for part in response.split("—")]
+    parts = [part for part in parts if len(part) > 0]
+    if len(parts) > 1 and is_ai_preamble(parts[0]):
+        first = parts[0]
+        parts = parts[1:]
 
-            # Check against accidentally accepting an AI correction summary paragraphs as part of the corrections
-            if len(line_parts) == len(paragraph_bundle) and not is_ai_corrections_summary(line_parts):
-                return line_parts
+        # In case there's something else in the first part, restore that
+        split_first = first.split("\n\n")
 
-        # Try a different separator
-        parts = [part.strip() for part in response.split("—")]
-        parts = [part for part in parts if len(part) > 0]
-        if len(parts) > 1 and is_ai_preamble(parts[0]):
-            first = parts[0]
-            parts = parts[1:]
+        # Try single lines if it looks like no double line change was used
+        if len(split_first) < 2:
+            split_first = first.split("\n")
 
-            # In case there's something else in the first part, restore that
-            split_first = first.split("\n\n")
+        if len(split_first) > 1:
+            parts = split_first[1:] + parts
 
-            # Try single lines if it looks like no double line change was used
-            if len(split_first) < 2:
-                split_first = first.split("\n")
+    if len(parts) == len(paragraph_bundle):
+        return parts
 
-            if len(split_first) > 1:
-                parts = split_first[1:] + parts
-
-        if len(parts) == len(paragraph_bundle):
-            return parts
-
-        print("Incorrect number of parts in response! Expected:", len(paragraph_bundle), "Got:", len(parts))
-        raise Exception("Incorrect number of parts in response!")
-
-    return parts
+    print("Incorrect number of parts in response! Expected:", len(paragraph_bundle), "Got:", original_count)
+    raise Exception("Incorrect number of parts in response!")
 
 
 # TODO: put these in a separate correction helpers file:
@@ -480,12 +483,13 @@ def apply_corrections(paragraph_bundle: List[Paragraph], corrections: List[str],
                 paragraph.correctionStatus = CorrectionStatus.generated
 
     if needed_corrections == 0:
-        print("No corrections needed for paragraph bundle in chapter:", paragraph_bundle[0].partOfChapter,
-              "processed in:", round(duration, 3), "seconds")
+        print("No corrections needed for paragraph bundle in chapter:", paragraph_bundle[0].partOfChapter)
     else:
         print("Needed corrections in", needed_corrections, "paragraph(s),", perfect_already,
-              "were perfect already, in chapter:", paragraph_bundle[0].partOfChapter, "processed in:",
-              round(duration, 3), "seconds")
+              "were perfect already, in chapter:", paragraph_bundle[0].partOfChapter)
+
+    characters_per_second = sum([len(paragraph.originalText) for paragraph in paragraph_bundle]) / duration
+    print("Processed in:", round(duration, 3), "seconds,", round(characters_per_second, 2), "characters/second")
 
 
 def chunked_paragraphs(paragraphs: List[Paragraph], chunk_size: int = 100) -> List[List[Paragraph]]:
