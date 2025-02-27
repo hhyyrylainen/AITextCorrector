@@ -468,6 +468,11 @@ def apply_corrections(paragraph_bundle: List[Paragraph], corrections: List[str],
         if paragraph.correctionStatus == CorrectionStatus.rejected and paragraph.correctedText != correction:
             paragraph.correctionStatus = CorrectionStatus.generated
 
+        # Reset manual edit as long as it is not approved so that the user can see the change they did
+        if paragraph.correctionStatus != CorrectionStatus.accepted:
+            print("Resetting manual edit for paragraph to make the new AI correction visible to the user")
+            paragraph.manuallyCorrectedText = None
+
         if correction == paragraph.originalText:
             paragraph.correctedText = None
             perfect_already += 1
