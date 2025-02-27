@@ -1,14 +1,17 @@
 import re
+from collections import Counter
 from functools import partial
 from typing import List
-from collections import Counter
 
 from backend.db.config import DEFAULT_MODEL
 from backend.db.database import Database
 from backend.db.project import Project, Chapter, Paragraph, CorrectionStatus
 from backend.utils.job import Job
 from backend.utils.job_queue import JobQueue
+from backend.utils.correction_validation import validate_corrections
 from .ollama_client import OllamaClient
+
+# TODO: investigate JSON formatted responses
 
 ANALYZE_PROMPT = (
     "Analyze the writing style of the provided text, focusing on key elements such as sentence structure, word choice, "
@@ -65,7 +68,13 @@ TEXT_CORRECTION_PROMPT_MAX = (
     "---\n")
 
 # Lower temperature makes less creative answers, and hopefully makes the text correction more reliable
-CORRECTION_MODEL_TEMPERATURE = 0.7
+# Though, it kind of seems like low heat more often doesn't follow the prompt fully?
+# CORRECTION_MODEL_TEMPERATURE = 0.7
+# CORRECTION_MODEL_TEMPERATURE = 0.75
+CORRECTION_MODEL_TEMPERATURE = 0.79
+
+# How many times to retry a prompt if the AI is not making correctly formatted suggestions (or Levenshtein distance
+# check fails)
 MAX_TECHNICAL_RETRIES = 2
 
 EXTRA_RECOMMENDED_MODELS = ["deepseek-r1:14b"]
@@ -157,7 +166,7 @@ class AIManager:
             print("No paragraphs to correct, skipping chapter:", chapter.name)
             return
 
-        for group in AIManager.chunked_paragraphs(paragraphs_to_correct, config.simultaneousCorrectionSize):
+        for group in chunked_paragraphs(paragraphs_to_correct, config.simultaneousCorrectionSize):
 
             print("Correcting paragraph group with size:", len(group), "and total character count:", sum(
                 [len(paragraph.originalText) for paragraph in group]))
@@ -248,7 +257,17 @@ class AIManager:
                 response = await task
 
                 try:
-                    corrections = AIManager._extract_corrections(paragraph_bundle, response)
+                    corrections = extract_corrections(paragraph_bundle, response)
+
+                    # Check how different the corrections are to not allow pure garbage through (but only if more than
+                    # two paragraphs were corrected as once as the AI shouldn't be able to write short enough garbage
+                    # to match the length
+                    if len(paragraph_bundle) >= 3:
+                        if not validate_corrections([paragraph.originalText for paragraph in paragraph_bundle],
+                                                    corrections):
+                            print("Corrections are too dissimilar to the original text, considering them invalid")
+                            raise Exception("Invalid corrections found in response! (too dissimilar to original text)")
+
                 except Exception as e:
                     print("Error extracting corrections from response:", e)
                     print("Response:", response)
@@ -300,54 +319,15 @@ class AIManager:
 
             if len(corrections_history) > 1:
                 # Break if all entries in the correction histories are the same
-                if AIManager.history_entries_match(corrections_history):
+                if history_entries_match(corrections_history):
                     break
 
         if not corrections:
             print("No corrections found in response, skipping correction!")
             return
 
-        corrections = AIManager.pick_best_history(corrections_history, corrections)
-
-        needed_corrections = 0
-        perfect_already = 0
-
-        # Apply the corrections
-        index = 0
-        for paragraph in paragraph_bundle:
-
-            correction = corrections[index]
-            index += 1
-
-            # Update correction status for paragraphs that were missing the status
-            if paragraph.correctionStatus == CorrectionStatus.notGenerated:
-                paragraph.correctionStatus = CorrectionStatus.generated
-
-            # Reset rejected status if there's new text
-            if paragraph.correctionStatus == CorrectionStatus.rejected and paragraph.correctedText != correction:
-                paragraph.correctionStatus = CorrectionStatus.generated
-
-            if correction == paragraph.originalText:
-                paragraph.correctedText = None
-                perfect_already += 1
-
-                # Set no correction required status if it makes sense
-                if paragraph.correctionStatus != CorrectionStatus.accepted and paragraph.correctionStatus != CorrectionStatus.reviewed:
-                    paragraph.correctionStatus = CorrectionStatus.notRequired
-
-                # print("No correction needed for paragraph:", paragraph.index, "in chapter:", paragraph.partOfChapter)
-            else:
-                paragraph.correctedText = correction
-                needed_corrections += 1
-
-                if paragraph.correctionStatus == CorrectionStatus.notRequired:
-                    paragraph.correctionStatus = CorrectionStatus.generated
-
-        if needed_corrections == 0:
-            print("No corrections needed for paragraph bundle in chapter:", paragraph_bundle[0].partOfChapter, )
-        else:
-            print("Needed corrections in", needed_corrections, "paragraph(s),", perfect_already,
-                  "were perfect already, in chapter:", paragraph_bundle[0].partOfChapter)
+        corrections = pick_best_history(corrections_history, corrections)
+        apply_corrections(paragraph_bundle, corrections)
 
     def _prompt_chat(self, message, model, extra_options=None, remove_think=False) -> str:
         self.currently_running = True
@@ -378,108 +358,191 @@ class AIManager:
 
         self.currently_running = False
 
-    @staticmethod
-    def _extract_corrections(paragraph_bundle: List[Paragraph], response: str) -> List[str]:
-        parts = [part.strip() for part in response.split("---")]
 
-        # Remove blank parts
+def extract_corrections(paragraph_bundle: List[Paragraph], response: str) -> List[str]:
+    parts = [part.strip() for part in response.split("---")]
+
+    # Remove blank parts
+    parts = [part for part in parts if len(part) > 0]
+
+    # If we end up with different number of parts than paragraphs, then we are in trouble
+    if len(parts) != len(paragraph_bundle):
+        # Remove any preface the AI may have added
+        if len(parts) - 1 == len(paragraph_bundle) and is_ai_preamble(parts[0]):
+            parts = parts[1:]
+            return parts
+
+        # Remove pre-amble as it is going to be hard for the further processing
+        if len(parts) > 1 and is_ai_preamble(parts[0]):
+            parts = parts[1:]
+
+        # Delete exactly duplicated parts
+        parts = list(dict.fromkeys(parts))  # Preserves order
+
+        if len(parts) == len(paragraph_bundle):
+            return parts
+
+        # Handle the case where the AI might just be splitting things on empty lines
+        line_parts = [section.strip() for part in parts for section in part.split("\n\n")]
+
+        # Remove any pre-amble that is visible now, and hope there were two spaces separating it so that it doesn't
+        # accidentally remove the first real part here
+        if len(line_parts) > 1 and is_ai_preamble(line_parts[0]):
+            line_parts = line_parts[1:]
+
+        if len(line_parts) == len(paragraph_bundle):
+            return line_parts
+        else:
+            # Try splitting even harder on the parts
+            line_parts = [section.strip() for part in line_parts for section in part.split("\n")]
+
+            # Hopefully preamble cannot appear here anymore...
+
+            # Check against accidentally accepting an AI correction summary paragraphs as part of the corrections
+            if len(line_parts) == len(paragraph_bundle) and not is_ai_corrections_summary(line_parts):
+                return line_parts
+
+        # Try a different separator
+        parts = [part.strip() for part in response.split("—")]
         parts = [part for part in parts if len(part) > 0]
+        if len(parts) > 1 and is_ai_preamble(parts[0]):
+            first = parts[0]
+            parts = parts[1:]
 
-        # If we end up with different number of parts than paragraphs, then we are in trouble
-        if len(parts) != len(paragraph_bundle):
-            # Remove any preface the AI may have added
-            if len(parts) - 1 == len(paragraph_bundle) and is_ai_preamble(parts[0]):
-                parts = parts[1:]
-                return parts
+            # In case there's something else in the first part, restore that
+            split_first = first.split("\n\n")
 
-            # Delete exactly duplicated parts
-            parts = list(dict.fromkeys(parts))  # Preserves order
+            if len(split_first) > 1:
+                parts = [split_first[1:]] + parts
 
-            if len(parts) == len(paragraph_bundle):
-                return parts
+        if len(parts) == len(paragraph_bundle):
+            return parts
 
-            # TODO: implement handling here for what to do (first part might be a general AI output thing)
-            print("Incorrect number of parts in response! Expected:", len(paragraph_bundle), "Got:", len(parts), )
-            raise Exception("Incorrect number of parts in response!")
+        print("Incorrect number of parts in response! Expected:", len(paragraph_bundle), "Got:", len(parts))
+        raise Exception("Incorrect number of parts in response!")
 
-        return parts
+    return parts
 
-    @staticmethod
-    def chunked_paragraphs(paragraphs: List[Paragraph], chunk_size: int = 100) -> List[List[Paragraph]]:
-        """
-        Groups up paragraphs into chunks of a given total character length
-        :param paragraphs: paragraphs to group
-        :param chunk_size: size of each chunk
-        :return: list of lists of paragraphs
-        """
-        chunks = []
-        current_chunk = []
-        current_size = 0
 
-        for paragraph in paragraphs:
-            paragraph_length = len(paragraph.originalText)
+# TODO: put these in a separate correction helpers file:
 
-            # Chunks may not be empty if all paragraphs are too long by themselves
-            # Also if there is a gap in the paragraph indices, then do not allow combining
-            if ((current_size + paragraph_length > chunk_size) and len(current_chunk) > 0) or (
-                    len(current_chunk) > 0 and current_chunk[-1].index + 1 != paragraph.index):
-                chunks.append(current_chunk)
-                current_chunk = []
-                current_size = 0
+def apply_corrections(paragraph_bundle: List[Paragraph], corrections: List[str]):
+    needed_corrections = 0
+    perfect_already = 0
 
-            current_chunk.append(paragraph)
-            current_size += paragraph_length
+    # Apply the corrections
+    index = 0
+    for paragraph in paragraph_bundle:
 
-        if current_chunk:
+        correction = corrections[index]
+        index += 1
+
+        # Update correction status for paragraphs that were missing the status
+        if paragraph.correctionStatus == CorrectionStatus.notGenerated:
+            paragraph.correctionStatus = CorrectionStatus.generated
+
+        # Reset rejected status if there's new text
+        if paragraph.correctionStatus == CorrectionStatus.rejected and paragraph.correctedText != correction:
+            paragraph.correctionStatus = CorrectionStatus.generated
+
+        if correction == paragraph.originalText:
+            paragraph.correctedText = None
+            perfect_already += 1
+
+            # Set no correction required status if it makes sense
+            if paragraph.correctionStatus != CorrectionStatus.accepted and paragraph.correctionStatus != CorrectionStatus.reviewed:
+                paragraph.correctionStatus = CorrectionStatus.notRequired
+
+            # print("No correction needed for paragraph:", paragraph.index, "in chapter:", paragraph.partOfChapter)
+        else:
+            paragraph.correctedText = correction
+            needed_corrections += 1
+
+            if paragraph.correctionStatus == CorrectionStatus.notRequired:
+                paragraph.correctionStatus = CorrectionStatus.generated
+
+    if needed_corrections == 0:
+        print("No corrections needed for paragraph bundle in chapter:", paragraph_bundle[0].partOfChapter, )
+    else:
+        print("Needed corrections in", needed_corrections, "paragraph(s),", perfect_already,
+              "were perfect already, in chapter:", paragraph_bundle[0].partOfChapter)
+
+
+def chunked_paragraphs(paragraphs: List[Paragraph], chunk_size: int = 100) -> List[List[Paragraph]]:
+    """
+    Groups up paragraphs into chunks of a given total character length
+    :param paragraphs: paragraphs to group
+    :param chunk_size: size of each chunk
+    :return: list of lists of paragraphs
+    """
+    chunks = []
+    current_chunk = []
+    current_size = 0
+
+    for paragraph in paragraphs:
+        paragraph_length = len(paragraph.originalText)
+
+        # Chunks may not be empty if all paragraphs are too long by themselves
+        # Also if there is a gap in the paragraph indices, then do not allow combining
+        if ((current_size + paragraph_length > chunk_size) and len(current_chunk) > 0) or (
+                len(current_chunk) > 0 and current_chunk[-1].index + 1 != paragraph.index):
             chunks.append(current_chunk)
+            current_chunk = []
+            current_size = 0
 
-        print(f"Consolidated {len(paragraphs)} paragraphs into {len(chunks)} chunks of size {chunk_size}")
-        return chunks
+        current_chunk.append(paragraph)
+        current_size += paragraph_length
 
-    @staticmethod
-    def history_entries_match(corrections_history: List[List[str]]) -> bool:
-        """
-        Looks in each history entry and compares it to the other ones, if all histories have the same item in slot 0,
-        slot 1, etc. then they are considered to be the same.
-        :param corrections_history: history to check
-        :return: True if histories match
-        """
-        # If there are no history entries or just one, they can be considered matching.
-        if not corrections_history or len(corrections_history) == 1:
-            return True
+    if current_chunk:
+        chunks.append(current_chunk)
 
-        # Use zip to iterate over each "slot" from all history entries.
-        for items in zip(*corrections_history):
-            # If there are different items in this slot, the histories do not match.
-            if len(set(items)) > 1:
-                return False
+    print(f"Consolidated {len(paragraphs)} paragraphs into {len(chunks)} chunks of size {chunk_size}")
+    return chunks
 
+
+def history_entries_match(corrections_history: List[List[str]]) -> bool:
+    """
+    Looks in each history entry and compares it to the other ones, if all histories have the same item in slot 0,
+    slot 1, etc. then they are considered to be the same.
+    :param corrections_history: history to check
+    :return: True if histories match
+    """
+    # If there are no history entries or just one, they can be considered matching.
+    if not corrections_history or len(corrections_history) == 1:
         return True
 
-    @staticmethod
-    def pick_best_history(corrections_history: List[List[str]], corrections: List[str]) -> List[str]:
-        """
-        Finds the most common item in each history at each slot and returns the corrections with those items. If no
-        history exists returns the "corrections" parameter.
-        :param corrections_history: history to inspect
-        :param corrections: fallback corrections if no history exists
+    # Use zip to iterate over each "slot" from all history entries.
+    for items in zip(*corrections_history):
+        # If there are different items in this slot, the histories do not match.
+        if len(set(items)) > 1:
+            return False
 
-        :return: best corrections from the history
-        """
-        if len(corrections_history) == 0:
-            return corrections
+    return True
 
-        best_corrections = []
 
-        # Using zip will collect each corresponding slot in the history entries
-        for slot_items in zip(*corrections_history):
-            # Count how many times each correction appears in this slot.
-            counter = Counter(slot_items)
-            # Select the most common item. most_common(1) returns a list with one tuple (item, count)
-            best_item = counter.most_common(1)[0][0]
-            best_corrections.append(best_item)
+def pick_best_history(corrections_history: List[List[str]], corrections: List[str]) -> List[str]:
+    """
+    Finds the most common item in each history at each slot and returns the corrections with those items. If no
+    history exists returns the "corrections" parameter.
+    :param corrections_history: history to inspect
+    :param corrections: fallback corrections if no history exists
 
-        return best_corrections
+    :return: best corrections from the history
+    """
+    if len(corrections_history) == 0:
+        return corrections
+
+    best_corrections = []
+
+    # Using zip will collect each corresponding slot in the history entries
+    for slot_items in zip(*corrections_history):
+        # Count how many times each correction appears in this slot.
+        counter = Counter(slot_items)
+        # Select the most common item. most_common(1) returns a list with one tuple (item, count)
+        best_item = counter.most_common(1)[0][0]
+        best_corrections.append(best_item)
+
+    return best_corrections
 
 
 def is_ai_preamble(text: str) -> bool:
@@ -496,3 +559,18 @@ def is_ai_preamble(text: str) -> bool:
             as_lower.startswith("here are the corrections applied") or
             as_lower.startswith("here are the text paragraphs") or
             as_lower.startswith("here is the corrected"))
+
+
+def is_ai_corrections_summary(parts: List[str]) -> bool:
+    if len(parts) < 2:
+        return False
+
+    first_lower = parts[0].lower()
+
+    if "issues" in first_lower and "provided" in first_lower and "corrections" in first_lower:
+        return True
+
+    if "here is the corrected" in first_lower:
+        return True
+
+    return False
