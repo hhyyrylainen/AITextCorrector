@@ -580,7 +580,7 @@ def is_ai_preamble(text: str) -> bool:
     return (as_lower.startswith("here are the corrected text") or
             as_lower.startswith("here are the corrected paragraphs") or
             as_lower.startswith("here are the corrected chapters") or
-            as_lower.startswith("here are the corrections applied") or
+            as_lower.startswith("here are the corrections") or
             as_lower.startswith("here are the text paragraphs") or
             as_lower.startswith("here is the corrected"))
 
