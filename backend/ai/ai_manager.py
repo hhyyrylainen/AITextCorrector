@@ -412,8 +412,12 @@ def extract_corrections(paragraph_bundle: List[Paragraph], response: str) -> Lis
             # In case there's something else in the first part, restore that
             split_first = first.split("\n\n")
 
+            # Try single lines if it looks like no double line change was used
+            if len(split_first) < 2:
+                split_first = first.split("\n")
+
             if len(split_first) > 1:
-                parts = [split_first[1:]] + parts
+                parts = split_first[1:] + parts
 
         if len(parts) == len(paragraph_bundle):
             return parts
