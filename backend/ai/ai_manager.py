@@ -156,7 +156,6 @@ class AIManager:
         if not chapter.paragraphs:
             raise Exception("Cannot generate corrections for chapter with no paragraphs")
 
-        print(f"Generating corrections for chapter {chapter.chapterIndex}:", chapter.name)
         start = time.time()
 
         config = await database.get_config()
@@ -167,6 +166,8 @@ class AIManager:
         if len(paragraphs_to_correct) < 1:
             print("No paragraphs to correct, skipping chapter:", chapter.name)
             return
+
+        print(f"Generating corrections for chapter {chapter.chapterIndex}:", chapter.name)
 
         for group in chunked_paragraphs(paragraphs_to_correct, config.simultaneousCorrectionSize):
 
@@ -184,9 +185,8 @@ class AIManager:
                 await database.update_paragraph(paragraph)
 
         duration = time.time() - start
-
-        if duration > 1:
-            print("Generated corrections for chapter:", chapter.name, "in:", duration, "seconds")
+        if duration > 10:
+            print("Generated corrections for chapter:", chapter.name, "in:", round(duration / 60, 1), "minutes")
 
     async def generate_single_correction(self, paragraph: Paragraph, correction_strength: int, re_runs: int):
         print("Generating correction for paragraph:", paragraph.index, "in chapter:", paragraph.partOfChapter)
@@ -481,10 +481,10 @@ def apply_corrections(paragraph_bundle: List[Paragraph], corrections: List[str],
 
     if needed_corrections == 0:
         print("No corrections needed for paragraph bundle in chapter:", paragraph_bundle[0].partOfChapter,
-              "processed in", round(duration, 3), "seconds")
+              "processed in:", round(duration, 3), "seconds")
     else:
         print("Needed corrections in", needed_corrections, "paragraph(s),", perfect_already,
-              "were perfect already, in chapter:", paragraph_bundle[0].partOfChapter, "processed in",
+              "were perfect already, in chapter:", paragraph_bundle[0].partOfChapter, "processed in:",
               round(duration, 3), "seconds")
 
 
