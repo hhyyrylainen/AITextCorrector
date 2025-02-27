@@ -1,6 +1,7 @@
 import re
 from collections import Counter
 from functools import partial
+import time
 from typing import List
 
 from backend.db.config import DEFAULT_MODEL
@@ -156,6 +157,7 @@ class AIManager:
             raise Exception("Cannot generate corrections for chapter with no paragraphs")
 
         print(f"Generating corrections for chapter {chapter.chapterIndex}:", chapter.name)
+        start = time.time()
 
         config = await database.get_config()
 
@@ -180,6 +182,11 @@ class AIManager:
 
             for paragraph in group:
                 await database.update_paragraph(paragraph)
+
+        duration = time.time() - start
+
+        if duration > 1:
+            print("Generated corrections for chapter:", chapter.name, "in:", duration, "seconds")
 
     async def generate_single_correction(self, paragraph: Paragraph, correction_strength: int, re_runs: int):
         print("Generating correction for paragraph:", paragraph.index, "in chapter:", paragraph.partOfChapter)
@@ -228,6 +235,8 @@ class AIManager:
         chapter.summary = response
 
     async def _generate_correction(self, paragraph_bundle: List[Paragraph], correction_strength: int, re_runs: int):
+        start = time.time()
+
         if correction_strength == 1:
             prompt = TEXT_CORRECTION_PROMPT_LOW
         elif correction_strength == 2:
@@ -327,7 +336,7 @@ class AIManager:
             return
 
         corrections = pick_best_history(corrections_history, corrections)
-        apply_corrections(paragraph_bundle, corrections)
+        apply_corrections(paragraph_bundle, corrections, time.time() - start)
 
     def _prompt_chat(self, message, model, extra_options=None, remove_think=False) -> str:
         self.currently_running = True
@@ -430,7 +439,7 @@ def extract_corrections(paragraph_bundle: List[Paragraph], response: str) -> Lis
 
 # TODO: put these in a separate correction helpers file:
 
-def apply_corrections(paragraph_bundle: List[Paragraph], corrections: List[str]):
+def apply_corrections(paragraph_bundle: List[Paragraph], corrections: List[str], duration: float = 0.0):
     needed_corrections = 0
     perfect_already = 0
 
@@ -466,10 +475,12 @@ def apply_corrections(paragraph_bundle: List[Paragraph], corrections: List[str])
                 paragraph.correctionStatus = CorrectionStatus.generated
 
     if needed_corrections == 0:
-        print("No corrections needed for paragraph bundle in chapter:", paragraph_bundle[0].partOfChapter, )
+        print("No corrections needed for paragraph bundle in chapter:", paragraph_bundle[0].partOfChapter,
+              "processed in", round(duration, 3), "seconds")
     else:
         print("Needed corrections in", needed_corrections, "paragraph(s),", perfect_already,
-              "were perfect already, in chapter:", paragraph_bundle[0].partOfChapter)
+              "were perfect already, in chapter:", paragraph_bundle[0].partOfChapter, "processed in",
+              round(duration, 3), "seconds")
 
 
 def chunked_paragraphs(paragraphs: List[Paragraph], chunk_size: int = 100) -> List[List[Paragraph]]:
