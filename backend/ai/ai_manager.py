@@ -277,6 +277,11 @@ class AIManager:
                             print("Corrections are too dissimilar to the original text, considering them invalid")
                             raise Exception("Invalid corrections found in response! (too dissimilar to original text)")
 
+                    # Check that the AI hasn't split quotation marks outside the real paragraphs
+                    for index, correction in enumerate(corrections):
+                        if len(correction) < 2 and len(paragraph_bundle[index].originalText) > 0:
+                            raise Exception("Invalid correction found in response! (too short):", correction)
+
                 except Exception as e:
                     print("Error extracting corrections from response:", e)
                     print("Response:", response)
