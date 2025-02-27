@@ -22,6 +22,10 @@ def validate_corrections(original: List[str], corrections: List[str], threshold:
     if len(original) != len(corrections):
         raise ValueError("Original and corrected lists must have the same length.")
 
+    # Assume empty is fine
+    if len(original) == 0:
+        return True
+
     distance_values = []
 
     for i, (orig, corr) in enumerate(zip(original, corrections)):
