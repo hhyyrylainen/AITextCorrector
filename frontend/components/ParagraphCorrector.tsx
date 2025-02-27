@@ -340,11 +340,12 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
         <div className={`${getBackgroundColour(paragraphData)} p-4 border rounded-md mt-1 w-full`}>
 
             {paragraphData.correctedText ? (
-                <div style={{height: '350px', width: '100%'}}>
+                <div style={{height: '300px', width: '100%'}}>
                     <DiffEditor
                         height="100%"
                         theme="vs-light" // Use "vs-light" or "vs-dark"
                         language="plaintext" // Set the appropriate language (e.g., "javascript", "python", etc.)
+                        originalLanguage="plaintext"
                         original={paragraphData.originalText}
                         modified={paragraphData.manuallyCorrectedText ? paragraphData.manuallyCorrectedText : paragraphData.correctedText}
                         options={{
@@ -353,6 +354,9 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
                             originalEditable: false,
                             renderSideBySide: true, // Show side-by-side diff (set false for inline diff)
                             automaticLayout: true, // Automatically adjust layout on resize
+                            minimap: {enabled: false},
+                            renderOverviewRuler: false,
+                            useInlineViewWhenSpaceIsLimited: false, // Makes wordwrap work
                         }}
                         onMount={handleEditorDidMount} // Capture editor instance
                     />
