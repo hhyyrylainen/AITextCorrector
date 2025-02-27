@@ -130,6 +130,81 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
         }
     }
 
+    async function approveAndSave() {
+        setIsProcessing(true);
+        try {
+            const editedText = handleGetEditedContent();
+
+            if (!editedText) {
+                setError("No text to save");
+                return;
+            }
+
+            const response = await fetch(
+                `/api/chapters/${paragraph.partOfChapter}/paragraphs/${paragraph.index}/approve`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        correctedText: editedText,
+                    }),
+                });
+            if (!response.ok) {
+                setError(`Failed to request approval of paragraph: ${response.statusText}`);
+                return;
+            }
+
+            setError(null); // Reset any previous errors
+
+            // Fetch updated state again
+            await fetchParagraphData(paragraph.partOfChapter, paragraph.index);
+
+        } catch (err) {
+            console.error("Error requesting approval of paragraph data:", err);
+            setError(err instanceof Error ? err.message : "Unknown error");
+        } finally {
+            setIsProcessing(false);
+        }
+    }
+
+    async function reject() {
+        setIsProcessing(true);
+        try {
+            const response = await fetch(
+                `/api/chapters/${paragraph.partOfChapter}/paragraphs/${paragraph.index}/reject`, {
+                    method: "POST",
+                });
+            if (!response.ok) {
+                setError(`Failed to request rejection of paragraph: ${response.statusText}`);
+                return;
+            }
+
+            setError(null); // Reset any previous errors
+
+            // In case there was any pending edit, just update the state here
+
+            await fetchParagraphData(paragraph.partOfChapter, paragraph.index);
+
+            setParagraphData((prevState) => {
+                // Whenever the button is available to press, prevState should be fine to mutate
+                if (!prevState)
+                    throw new Error("Unexpected state (prevState is null)");
+
+                return {
+                    ...prevState,
+                    correctionStatus: CorrectionStatus.rejected
+                };
+            });
+
+        } catch (err) {
+            console.error("Error requesting approval of paragraph data:", err);
+            setError(err instanceof Error ? err.message : "Unknown error");
+        } finally {
+            setIsProcessing(false);
+        }
+    }
+
     // Callback to capture the Monaco Diff Editor instance
     const handleEditorDidMount = (editor: IStandaloneDiffEditor) => {
         diffEditorRef.current = editor;
@@ -296,12 +371,14 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
 
             <button
                 disabled={isProcessing || generating}
+                onClick={approveAndSave}
                 className="mt-2 px-4 py-2 mx-1 bg-green-600 text-white hover:bg-green-800 rounded-md  focus:ring-offset-2">
                 Approve
             </button>
 
             <button
                 disabled={isProcessing || generating}
+                onClick={reject}
                 className="mt-2 px-4 py-2 mx-1 bg-red-500 text-white hover:bg-red-700 rounded-md  focus:ring-offset-2">
                 Reject
             </button>
