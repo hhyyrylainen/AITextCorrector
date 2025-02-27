@@ -350,6 +350,7 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
                         modified={paragraphData.manuallyCorrectedText ? paragraphData.manuallyCorrectedText : paragraphData.correctedText}
                         options={{
                             wordWrap: "on",
+                            diffWordWrap: "on",
                             readOnly: false,
                             originalEditable: false,
                             renderSideBySide: true, // Show side-by-side diff (set false for inline diff)
@@ -357,6 +358,8 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
                             minimap: {enabled: false},
                             renderOverviewRuler: false,
                             useInlineViewWhenSpaceIsLimited: false, // Makes wordwrap work
+                            // renderWhitespace: "all",
+                            renderWhitespace: "boundary",
                         }}
                         onMount={handleEditorDidMount} // Capture editor instance
                     />
