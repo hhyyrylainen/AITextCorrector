@@ -334,6 +334,34 @@ async def clear_paragraph_data(chapter_id: int, paragraph_index: int):
         raise HTTPException(status_code=500,
                             detail="Error: " + str(e) + " while saving paragraph. Try again later.")
 
+@app.post("/api/chapters/{chapter_id}/paragraphs/{paragraph_index}/saveManual")
+async def paragraph_save_manual(chapter_id: int, paragraph_index: int, request: Dict):
+    """
+    Saves a manual edit for a paragraph (or clears it if it is the same as the AI)
+    """
+    paragraph = await database.get_paragraph(chapter_id, paragraph_index)
+    if not paragraph:
+        raise HTTPException(status_code=404, detail="Paragraph not found")
+
+    text: str | None = request.get("correctedText", None)
+
+    if text is not None and len(text) < 1:
+        text = None
+
+    paragraph.manuallyCorrectedText = text
+
+    # If matches AI then reset
+    if paragraph.manuallyCorrectedText == paragraph.correctedText:
+        paragraph.manuallyCorrectedText = None
+    else:
+        paragraph.correctionStatus = CorrectionStatus.reviewed
+
+    try:
+        await database.update_paragraph(paragraph)
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail="Error: " + str(e) + " while saving paragraph. Try again later.")
+
 
 ######################
 # General AI endpoints
