@@ -1,7 +1,7 @@
 from typing import List
 from Levenshtein import distance as levenshtein_distance
 
-DEFAULT_THRESHOLD = 0.5
+DEFAULT_THRESHOLD = 0.6
 
 
 def validate_corrections(original: List[str], corrections: List[str], threshold: float = DEFAULT_THRESHOLD,
