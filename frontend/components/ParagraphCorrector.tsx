@@ -1,7 +1,11 @@
 "use client";
 
-import {useEffect, useState} from "react";
+import {useEffect, useState, useRef} from "react";
+import {DiffEditor} from '@monaco-editor/react';
+
 import {CorrectionStatus, Paragraph} from "@/app/projectDefinitions";
+import {editor} from "monaco-editor";
+import IStandaloneDiffEditor = editor.IStandaloneDiffEditor;
 
 type ParagraphCorrectorProps = {
     paragraph: Paragraph;
@@ -16,6 +20,8 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
     const [isPolling, setIsPolling] = useState<boolean>(false); // Track polling state
 
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
+
+    const diffEditorRef = useRef<IStandaloneDiffEditor>(null);
 
     // Function to fetch paragraph data from the backend
     async function fetchParagraphData(partOfChapter: number, index: number) {
@@ -86,6 +92,61 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
         }
     }
 
+    async function saveCorrection() {
+        setIsProcessing(true);
+        try {
+            const editedText = handleGetEditedContent();
+
+            if (!editedText) {
+                setError("No text to save");
+                return;
+            }
+
+            const response = await fetch(
+                `/api/chapters/${paragraph.partOfChapter}/paragraphs/${paragraph.index}/saveManual`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        correctedText: editedText,
+                    }),
+                });
+            if (!response.ok) {
+                setError(`Failed to request save of paragraph: ${response.statusText}`);
+                return;
+            }
+
+            setError(null); // Reset any previous errors
+
+            // Fetch updated state again
+            await fetchParagraphData(paragraph.partOfChapter, paragraph.index);
+
+        } catch (err) {
+            console.error("Error requesting save of paragraph data:", err);
+            setError(err instanceof Error ? err.message : "Unknown error");
+        } finally {
+            setIsProcessing(false);
+        }
+    }
+
+    // Callback to capture the Monaco Diff Editor instance
+    const handleEditorDidMount = (editor: IStandaloneDiffEditor) => {
+        diffEditorRef.current = editor;
+    };
+
+    // Function to read the content of the "original" and "modified" models
+    const handleGetEditedContent = () => {
+        if (diffEditorRef.current) {
+            const modifiedText = diffEditorRef.current.getModel()?.modified?.getValue();
+
+            console.log(modifiedText);
+
+            return modifiedText;
+        }
+
+        return null;
+    };
 
     function getBackgroundColour(paragraphData: Paragraph) {
 
@@ -146,6 +207,27 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
         fetchParagraphData(paragraph.partOfChapter, paragraph.index);
     }, [paragraph.partOfChapter, paragraph.index]);
 
+    // TODO: this seems to not work when this component transitions to an error state and the monaco editor will print
+    // an error
+    useEffect(() => {
+        // Cleanup logic when the component is unmounted
+        return () => {
+            if (diffEditorRef.current) {
+                // Dispose of the editor and its associated models
+                // Note that originally this was before the model disposes
+                diffEditorRef.current.dispose(); // Dispose of the editor instance
+
+                /*const models = diffEditorRef.current.getModel();
+                if (models) {
+                    models.original.dispose(); // Dispose of the "original" model
+                    models.modified.dispose(); // Dispose of the "modified" model
+                }*/
+
+                diffEditorRef.current = null;  // Clear the reference
+            }
+        };
+    }, []);
+
     if (loading) {
         return <div>Loading latest paragraph data...</div>;
     }
@@ -183,12 +265,23 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
         <div className={`${getBackgroundColour(paragraphData)} p-4 border rounded-md mt-1 w-full`}>
 
             {paragraphData.correctedText ? (
-                <textarea
-                    disabled={isProcessing || generating}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                    rows={4}
-                    defaultValue={paragraphData.correctedText}
-                />
+                <div style={{height: '350px', width: '100%'}}>
+                    <DiffEditor
+                        height="100%"
+                        theme="vs-light" // Use "vs-light" or "vs-dark"
+                        language="plaintext" // Set the appropriate language (e.g., "javascript", "python", etc.)
+                        original={paragraphData.originalText}
+                        modified={paragraphData.manuallyCorrectedText ? paragraphData.manuallyCorrectedText : paragraphData.correctedText}
+                        options={{
+                            wordWrap: "on",
+                            readOnly: false,
+                            originalEditable: false,
+                            renderSideBySide: true, // Show side-by-side diff (set false for inline diff)
+                            automaticLayout: true, // Automatically adjust layout on resize
+                        }}
+                        onMount={handleEditorDidMount} // Capture editor instance
+                    />
+                </div>
             ) : (
                 <>
                     <textarea
@@ -215,6 +308,7 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
 
             <button
                 disabled={isProcessing || generating}
+                onClick={saveCorrection}
                 className="mt-2 px-4 py-2 mx-1 bg-blue-500 text-white rounded-md hover:bg-blue-600">
                 Save Correction
             </button>
