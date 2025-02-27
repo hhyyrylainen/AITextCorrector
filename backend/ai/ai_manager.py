@@ -156,6 +156,7 @@ class AIManager:
         if not chapter.paragraphs:
             raise Exception("Cannot generate corrections for chapter with no paragraphs")
 
+        # If another chapter is processing at the same time the timing is a bit unreliable
         start = time.time()
 
         config = await database.get_config()
@@ -235,8 +236,6 @@ class AIManager:
         chapter.summary = response
 
     async def _generate_correction(self, paragraph_bundle: List[Paragraph], correction_strength: int, re_runs: int):
-        start = time.time()
-
         if correction_strength == 1:
             prompt = TEXT_CORRECTION_PROMPT_LOW
         elif correction_strength == 2:
@@ -257,6 +256,9 @@ class AIManager:
         corrections_history: List[List[str]] = []
 
         technical_retries = MAX_TECHNICAL_RETRIES
+
+        # The timing here is not really reliable if there are jobs in the queue that make this have to wait
+        start = time.time()
 
         while True:
             while True:
