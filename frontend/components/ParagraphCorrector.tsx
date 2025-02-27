@@ -61,6 +61,32 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
         }
     }
 
+    async function clearData() {
+        setIsProcessing(true);
+        try {
+            const response = await fetch(
+                `/api/chapters/${paragraph.partOfChapter}/paragraphs/${paragraph.index}/clear`, {
+                    method: "POST",
+                });
+            if (!response.ok) {
+                setError(`Failed to request paragraph data clearing: ${response.statusText}`);
+                return;
+            }
+
+            setError(null); // Reset any previous errors
+
+            // Succeeded so we should fetch the paragraph data again
+            await fetchParagraphData(paragraph.partOfChapter, paragraph.index);
+
+        } catch (err) {
+            console.error("Error requesting clearing of paragraph data:", err);
+            setError(err instanceof Error ? err.message : "Unknown error");
+        } finally {
+            setIsProcessing(false);
+        }
+    }
+
+
     function getBackgroundColour(paragraphData: Paragraph) {
 
         if (paragraphData.correctionStatus == CorrectionStatus.accepted)
@@ -155,18 +181,26 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
 
     return (
         <div className={`${getBackgroundColour(paragraphData)} p-4 border rounded-md mt-1 w-full`}>
-            <textarea
-                disabled={isProcessing}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                rows={4}
-                defaultValue={paragraphData.originalText}
-            />
-            <textarea
-                disabled={isProcessing || generating}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                rows={4}
-                defaultValue={paragraphData.correctedText}
-            />
+
+            {paragraphData.correctedText ? (
+                <textarea
+                    disabled={isProcessing || generating}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    rows={4}
+                    defaultValue={paragraphData.correctedText}
+                />
+            ) : (
+                <>
+                    <textarea
+                        disabled={isProcessing}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        rows={4}
+                        defaultValue={paragraphData.originalText}
+                    />
+                    <p>{"AI found nothing to correct (TODO: allow manual editing here)"}</p>
+                </>
+            )}
+
             <button
                 disabled={isProcessing || generating}
                 className="mt-2 px-4 py-2 mx-1 bg-green-600 text-white hover:bg-green-800 rounded-md  focus:ring-offset-2">
@@ -190,6 +224,13 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
                 onClick={generateCorrection}
                 className="mt-2 px-4 py-2 mx-1 bg-gray-300 text-gray-700 hover:bg-gray-200 rounded-md  focus:ring-offset-2">
                 {generating ? "Regenerating..." : "Regenerate Correction"}
+            </button>
+
+            <button
+                disabled={isProcessing || generating}
+                onClick={clearData}
+                className="mt-2 px-4 py-2 mx-1 bg-gray-300 text-red-700 hover:bg-gray-200 rounded-md  focus:ring-offset-2">
+                Clear Correction Data
             </button>
         </div>
     );

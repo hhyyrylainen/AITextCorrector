@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from ai.ai_manager import AIManager
 from ai.ollama_client import OllamaClient
 from db.config import ConfigModel
-from db.project import create_project
+from db.project import create_project, CorrectionStatus
 from db.database import database
 from utils.epub import extract_epub_chapters, chapters_to_plain_text
 
@@ -314,6 +314,25 @@ async def generate_correction(chapter_id: int, paragraph_index: int):
         print("Error while generating correction: ", e)
         raise HTTPException(status_code=500,
                             detail="Error: " + str(e) + " while generating correction. Try again later.")
+
+@app.post("/api/chapters/{chapter_id}/paragraphs/{paragraph_index}/clear")
+async def clear_paragraph_data(chapter_id: int, paragraph_index: int):
+    """
+    Clears paragraph data state to allow restarting its correcting
+    """
+    paragraph = await database.get_paragraph(chapter_id, paragraph_index)
+    if not paragraph:
+        raise HTTPException(status_code=404, detail="Paragraph not found")
+
+    paragraph.correctedText = None
+    paragraph.manuallyCorrectedText = None
+    paragraph.correctionStatus = CorrectionStatus.notGenerated
+
+    try:
+        await database.update_paragraph(paragraph)
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail="Error: " + str(e) + " while saving paragraph. Try again later.")
 
 
 ######################
