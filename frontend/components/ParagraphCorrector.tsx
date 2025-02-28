@@ -133,12 +133,10 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
     async function approveAndSave() {
         setIsProcessing(true);
         try {
-            const editedText = handleGetEditedContent();
+            let editedText = handleGetEditedContent();
 
-            if (!editedText) {
-                setError("No text to save");
-                return;
-            }
+            if (!editedText)
+                editedText = null;
 
             const response = await fetch(
                 `/api/chapters/${paragraph.partOfChapter}/paragraphs/${paragraph.index}/approve`, {
