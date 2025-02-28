@@ -270,6 +270,9 @@ class AIManager:
                 try:
                     corrections = extract_corrections(paragraph_bundle, response)
 
+                    corrections = [unify_punctuation_marks(paragraph_bundle[index].originalText, correction) for
+                                   index, correction in enumerate(corrections)]
+
                     # Check how different the corrections are to not allow pure garbage through (but only if more than
                     # two paragraphs were corrected as once as the AI shouldn't be able to write short enough garbage
                     # to match the length
@@ -448,6 +451,43 @@ def extract_corrections(paragraph_bundle: List[Paragraph], response: str) -> Lis
 
 
 # TODO: put these in a separate correction helpers file:
+
+def unify_punctuation_marks(original: str, updated: str) -> str:
+    """
+    Makes the style of used apostrophes the same in both strings
+    :param original: original text
+    :param updated: updated text
+    :return: unified string
+    """
+    if "’" in original and "\'" in updated:
+        updated = updated.replace('\'', '’')
+    elif "‘" in original and "’" not in original and "\'" in updated and "’" not in updated:
+        updated = updated.replace('\'', '‘')
+    elif "’" not in original and "’" in updated:
+        updated = updated.replace('’', '\'')
+
+    if "“" in original and '"' in updated:
+        updated = convert_to_smart_quotes(updated)
+
+    return updated
+
+
+def convert_to_smart_quotes(text: str) -> str:
+    work = list(text)
+
+    opened = False
+
+    for i in range(len(work)):
+        if work[i] == '"':
+            if opened:
+                opened = False
+                work[i] = '”'
+            else:
+                opened = True
+                work[i] = '“'
+
+    return ''.join(work)
+
 
 def apply_corrections(paragraph_bundle: List[Paragraph], corrections: List[str], duration: float = 0.0):
     needed_corrections = 0
