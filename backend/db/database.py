@@ -439,7 +439,8 @@ class Database:
                     SELECT paragraphIndex
                     FROM paragraphs
                     WHERE chapterId = ? AND correctionStatus != {CorrectionStatus.notRequired.value}
-                    AND correctionStatus != {CorrectionStatus.accepted.value}
+                    AND correctionStatus != {CorrectionStatus.accepted.value} 
+                    AND correctionStatus != {CorrectionStatus.rejected.value}
                     """,
                     (chapter_id,),
             ) as paragraphs_cursor:

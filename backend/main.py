@@ -268,7 +268,7 @@ async def generate_chapter_corrections(chapter_id: int, background_tasks: Backgr
 
 
 @app.get("/api/chapters/{chapter_id}/paragraphsWithCorrections")
-async def regenerate_chapter_summary(chapter_id: int):
+async def chapter_paragraphs_needing_actions(chapter_id: int):
     """
     Endpoint to get a list of paragraphs with corrections for a specific chapter.
     :param chapter_id: The ID of the chapter to regenerate the summary for.
