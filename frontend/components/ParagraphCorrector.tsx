@@ -19,6 +19,9 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
     const [error, setError] = useState<string | null>(null);
     const [isPolling, setIsPolling] = useState<boolean>(false); // Track polling state
 
+    // Add state to handle the textarea value
+    const [textValue, setTextValue] = useState("");
+
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
     const diffEditorRef = useRef<IStandaloneDiffEditor>(null);
@@ -41,6 +44,12 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
             setLoading(false);
         }
     }
+
+    useEffect(() => {
+        if (paragraphData) {
+            setTextValue(paragraphData.originalText); // Update state when data changes
+        }
+    }, [paragraphData]); // React to changes in paragraphData
 
     async function generateCorrection() {
         setGenerating(true);
@@ -66,6 +75,8 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
             setGenerating(false);
         }
     }
+
+    const hasCorrectedText = paragraphData && (paragraphData.correctedText || paragraphData.manuallyCorrectedText);
 
     async function clearData() {
         setIsProcessing(true);
@@ -95,7 +106,8 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
     async function saveCorrection() {
         setIsProcessing(true);
         try {
-            const editedText = handleGetEditedContent();
+
+            const editedText = hasCorrectedText ? handleGetEditedContent() : textValue;
 
             if (!editedText) {
                 setError("No text to save");
@@ -133,7 +145,7 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
     async function approveAndSave() {
         setIsProcessing(true);
         try {
-            let editedText = handleGetEditedContent();
+            let editedText = hasCorrectedText ? handleGetEditedContent() : textValue;
 
             if (!editedText)
                 editedText = null;
@@ -220,6 +232,12 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
 
         return null;
     };
+
+    // Handle the change in textarea
+    const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setTextValue(event.target.value); // Update the state as the user types
+    };
+
 
     function getBackgroundColour(paragraphData: Paragraph) {
 
@@ -333,11 +351,10 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
         );
     }
 
-
     return (
         <div className={`${getBackgroundColour(paragraphData)} p-4 border rounded-md mt-1 w-full`}>
 
-            {paragraphData.correctedText ? (
+            {hasCorrectedText ? (
                 <div style={{height: '300px', width: '100%'}}>
                     <DiffEditor
                         height="100%"
@@ -368,9 +385,10 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
                         disabled={isProcessing}
                         className="w-full p-2 border border-gray-300 rounded-md"
                         rows={4}
-                        defaultValue={paragraphData.originalText}
+                        value={textValue}
+                        onChange={handleChange}
                     />
-                    <p>{"AI found nothing to correct (TODO: allow manual editing here)"}</p>
+                    <p>{"AI found nothing to correct (edit above for a manual correction)"}</p>
                 </>
             )}
 
@@ -381,12 +399,14 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
                 Approve
             </button>
 
-            <button
-                disabled={isProcessing || generating}
-                onClick={reject}
-                className="mt-2 px-4 py-2 mx-1 bg-red-500 text-white hover:bg-red-700 rounded-md  focus:ring-offset-2">
-                Reject
-            </button>
+            {hasCorrectedText &&
+                <button
+                    disabled={isProcessing || generating}
+                    onClick={reject}
+                    className="mt-2 px-4 py-2 mx-1 bg-red-500 text-white hover:bg-red-700 rounded-md  focus:ring-offset-2">
+                    Reject
+                </button>
+            }
 
             <button
                 disabled={isProcessing || generating}
