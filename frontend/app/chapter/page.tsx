@@ -161,6 +161,14 @@ function Page() {
         }
     }
 
+    const paragraphTextToShow = (paragraph: Paragraph) => {
+        if (paragraph.correctionStatus == CorrectionStatus.accepted) {
+            return paragraph.manuallyCorrectedText || paragraph.correctedText || "CORRECTION MISSING!";
+        }
+
+        return paragraph.originalText;
+    }
+
     function commonParagraphControls() {
         return (
             <>
@@ -244,7 +252,7 @@ function Page() {
                                                 {paragraph.index}.</span>
                                             <span className="text-gray-700 ms-2"
                                                   style={{maxWidth: "32rem", width: "32rem"}}>
-                                                {paragraph.originalText.split("\n").map((line, index) => (
+                                                {paragraphTextToShow(paragraph).split("\n").map((line, index) => (
                                                     <span key={index}>
                                                         {line}
                                                         <br/>
