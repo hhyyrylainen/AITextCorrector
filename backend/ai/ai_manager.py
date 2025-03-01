@@ -270,7 +270,8 @@ class AIManager:
                 try:
                     corrections = extract_corrections(paragraph_bundle, response)
 
-                    corrections = [unify_punctuation_marks(paragraph_bundle[index].originalText, correction) for
+                    # Apply post-processing to clean up extracted corrections that might still have a lot of issues
+                    corrections = [post_process_correction(paragraph_bundle[index].originalText, correction) for
                                    index, correction in enumerate(corrections)]
 
                     # Check how different the corrections are to not allow pure garbage through (but only if more than
@@ -452,6 +453,21 @@ def extract_corrections(paragraph_bundle: List[Paragraph], response: str) -> Lis
 
 # TODO: put these in a separate correction helpers file:
 
+def post_process_correction(original: str, updated: str) -> str:
+    # Fix an extra "-\n" being in the updated text
+    if updated.startswith("-\n") or updated.startswith("—"):
+        updated = updated[1:].strip()
+
+    # Fix the AI still wanting to duplicate an answer at this point
+    if "---" in updated:
+        parts = updated.split("---")
+
+        if len(parts) == 2 and parts[0].strip() == parts[1].strip():
+            updated = parts[0].strip()
+
+    return unify_punctuation_marks(original, updated)
+
+
 def unify_punctuation_marks(original: str, updated: str) -> str:
     """
     Makes the style of used apostrophes the same in both strings
@@ -630,7 +646,8 @@ def is_ai_preamble(text: str) -> bool:
             as_lower.startswith("here are the corrections") or
             as_lower.startswith("here are your corrections") or
             as_lower.startswith("here are the text paragraphs") or
-            as_lower.startswith("here is the corrected"))
+            as_lower.startswith("here is the corrected") or
+            as_lower.startswith("here's the corrected"))
 
 
 def is_ai_corrections_summary(parts: List[str]) -> bool:
