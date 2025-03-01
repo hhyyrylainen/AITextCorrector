@@ -265,11 +265,11 @@ function Page() {
                             {/* Summary Section */}
 
                             {chapter.summary ? (
-                                <div>
+                                <div className={"mx-2"}>
                                     {chapter.summary.split("\n").map((line, index) => (
                                         <span key={index}>
                                         {line}
-                                            <br/>
+                                        <br/>
                                     </span>
                                     ))}
                                 </div>
