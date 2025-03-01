@@ -1,12 +1,12 @@
 "use client";
 
-import {useState, useEffect, Suspense} from "react";
+import {Suspense, useEffect, useState} from "react";
 import {useSearchParams} from "next/navigation"; // Hook to access query parameters
 import Link from "next/link";
 
 import ParagraphCorrector from "@components/ParagraphCorrector";
 
-import {Chapter} from "@/app/projectDefinitions";
+import {Chapter, CorrectionStatus, Paragraph} from "@/app/projectDefinitions";
 
 function Page() {
     // Access the search parameters object
@@ -145,6 +145,22 @@ function Page() {
         }))
     }
 
+    const bgColourFromState = (paragraph: Paragraph) => {
+        if (paragraph.correctionStatus == CorrectionStatus.accepted) {
+            return "bg-green-100";
+        } else if (paragraph.correctionStatus == CorrectionStatus.rejected) {
+            return "bg-red-100";
+        } else if (paragraph.correctionStatus == CorrectionStatus.notRequired) {
+            return "bg-blue-200";
+        } else if (paragraph.correctionStatus == CorrectionStatus.reviewed) {
+            return "bg-yellow-100";
+        } else if (paragraph.correctionStatus == CorrectionStatus.generated) {
+            return "bg-gray-100";
+        } else {
+            return "";
+        }
+    }
+
     function commonParagraphControls() {
         return (
             <>
@@ -223,7 +239,9 @@ function Page() {
                                     <li key={paragraph.index} className="w-full flex flex-col items-center gap-2">
                                         {paragraph.leadingSpace > 0 && (<div className="h-10"/>)}
                                         <div className="flex items-center gap-2">
-                                            <span className="font-semibold min-w-8">{paragraph.index}.</span>
+                                            <span
+                                                className={`font-semibold min-w-8 rounded p-1 ${bgColourFromState(paragraph)} text-center`}>
+                                                {paragraph.index}.</span>
                                             <span className="text-gray-700 ms-2"
                                                   style={{maxWidth: "32rem", width: "32rem"}}>
                                                 {paragraph.originalText.split("\n").map((line, index) => (
