@@ -145,6 +145,43 @@ function Page() {
         }))
     }
 
+    function commonParagraphControls() {
+        return (
+            <>
+                <button
+                    className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
+                    onClick={openParagraphsNeedingCorrection}
+                >
+                    {"Correct All"}
+                </button>
+
+                <button
+                    className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
+                    onClick={() => setParagraphCorrection(true)}
+                >
+                    {"Expand All"}
+                </button>
+
+                <button
+                    className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
+                    onClick={() => setParagraphCorrection(false)}
+                >
+                    {"Collapse All"}
+                </button>
+
+                <button
+                    className={`ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md ${
+                        generatingCorrections ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                            : "bg-gray-200 text-gray-600 hover:bg-gray-300 "
+                    }`}
+                    onClick={generateCorrections}
+                    disabled={generatingCorrections || generationRequested} // Disable button when processing
+                >
+                    {generationRequested ? "Generating..." : "Generate Corrections"}
+                </button>
+            </>
+        )
+    }
 
     if (chapterId == null) {
         return <p>No chapter found. Please go back to the project.</p>
@@ -167,6 +204,10 @@ function Page() {
                         {errorMessage}
                     </div>
                 )}
+
+                <div className={"max-w-3xl"}>
+                    {commonParagraphControls()}
+                </div>
 
                 {/* Loading state */}
                 {loading ? (
@@ -216,37 +257,7 @@ function Page() {
                         )}
 
                         <div className={"max-w-3xl"}>
-                            <button
-                                className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
-                                onClick={openParagraphsNeedingCorrection}
-                            >
-                                {"Correct All"}
-                            </button>
-
-                            <button
-                                className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
-                                onClick={() => setParagraphCorrection(true)}
-                            >
-                                {"Expand All"}
-                            </button>
-
-                            <button
-                                className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
-                                onClick={() => setParagraphCorrection(false)}
-                            >
-                                {"Collapse All"}
-                            </button>
-
-                            <button
-                                className={`ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md ${
-                                    generatingCorrections ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                                        : "bg-gray-200 text-gray-600 hover:bg-gray-300 "
-                                }`}
-                                onClick={generateCorrections}
-                                disabled={generatingCorrections || generationRequested} // Disable button when processing
-                            >
-                                {generationRequested ? "Generating..." : "Generate Corrections"}
-                            </button>
+                            {commonParagraphControls()}
 
                             <button
                                 className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
@@ -269,7 +280,7 @@ function Page() {
                                     {chapter.summary.split("\n").map((line, index) => (
                                         <span key={index}>
                                         {line}
-                                        <br/>
+                                            <br/>
                                     </span>
                                     ))}
                                 </div>
