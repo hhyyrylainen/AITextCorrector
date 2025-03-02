@@ -76,7 +76,8 @@ CORRECTION_MODEL_TEMPERATURE = 0.79
 
 # How many times to retry a prompt if the AI is not making correctly formatted suggestions (or Levenshtein distance
 # check fails)
-MAX_TECHNICAL_RETRIES = 2
+MAX_TECHNICAL_RETRIES = 3
+RE_RUN_MAX_RETRIES = 1
 
 EXTRA_RECOMMENDED_MODELS = ["deepseek-r1:14b"]
 
@@ -257,10 +258,6 @@ class AIManager:
 
         technical_retries = MAX_TECHNICAL_RETRIES
 
-        if re_runs > 1:
-            # Allow more technical retries budget to hopefully get at least something done
-            technical_retries += 1
-
         # The timing here is not really reliable if there are jobs in the queue that make this have to wait
         start = time.time()
 
@@ -315,8 +312,9 @@ class AIManager:
                 # No need for technical retry
                 break
 
-            # Restore some technical retries for another re-run (but don't go over a limit)
-            technical_retries = min(technical_retries + 1, MAX_TECHNICAL_RETRIES)
+            # Restore some technical retries for another re-run (but keep the limit really low)
+            # technical_retries = min(technical_retries + 1, RE_RUN_MAX_RETRIES)
+            technical_retries = min(technical_retries, RE_RUN_MAX_RETRIES)
 
             corrections_history.append(corrections)
 
