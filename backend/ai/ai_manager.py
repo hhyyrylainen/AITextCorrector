@@ -465,7 +465,54 @@ def post_process_correction(original: str, updated: str) -> str:
         if len(parts) == 2 and parts[0].strip() == parts[1].strip():
             updated = parts[0].strip()
 
-    return unify_punctuation_marks(original, updated)
+    updated = unify_punctuation_marks(original, updated)
+
+    return fix_invalid_quote_punctuation(updated)
+
+
+def fix_invalid_quote_punctuation(text: str) -> str:
+    """
+    Replaces '.”,' with either '.”' or ',”' based on whether the next non-whitespace character is capital.
+
+    Args:
+        text (str): The input text to process
+
+    Returns:
+        str: The processed text with fixed punctuation
+    """
+    # First handle a case that doesn't allow continuing
+    if "?”." in text:
+        text = text.replace("?”.", "?”")
+    if "?”," in text:
+        text = text.replace("?”,", "?”")
+    if "…”," in text:
+        text = text.replace("…”,", "…”")
+
+    if ".”," not in text and ",”." not in text:
+        return text
+
+    result = []
+
+    i = 0
+    while i < len(text):
+        # Look for the pattern '.",'
+        if i + 2 < len(text) and (text[i:i + 3] == '.”,' or text[i:i + 3] == ',”.'):
+            # Find the next non-whitespace character
+            next_char_pos = i + 3
+            while next_char_pos < len(text) and text[next_char_pos].isspace():
+                next_char_pos += 1
+
+            # If we found a next character, and it's uppercase, keep the period
+            if next_char_pos < len(text) and text[next_char_pos].isupper():
+                result.append('.”')
+            else:
+                result.append(',”')
+            i += 3
+        else:
+            result.append(text[i])
+            i += 1
+
+    return ''.join(result)
 
 
 def unify_punctuation_marks(original: str, updated: str) -> str:
@@ -484,6 +531,15 @@ def unify_punctuation_marks(original: str, updated: str) -> str:
 
     if "“" in original and '"' in updated:
         updated = convert_to_smart_quotes(updated)
+
+    # Fix spaces around quote marks
+    updated = updated.replace("“ ", "“")
+    updated = updated.replace(" ”", "”")
+
+    # And no silly double quotes
+    updated = updated.replace("““", "“")
+    updated = updated.replace("””", "”")
+    updated = updated.replace("“”", "“")
 
     return updated
 
