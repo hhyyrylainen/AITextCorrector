@@ -307,7 +307,9 @@ async def generate_correction(chapter_id: int, paragraph_index: int):
     ai_manager = await get_ai_manager()
 
     try:
-        await ai_manager.generate_single_correction(paragraph, project.correctionStrengthLevel, config.correctionReRuns)
+        # As this is meant to be a fast API don't use re-runs
+        # await ai_manager.generate_single_correction(paragraph, project.correctionStrengthLevel, config.correctionReRuns)
+        await ai_manager.generate_single_correction(paragraph, project.correctionStrengthLevel, 0)
 
         await database.update_paragraph(paragraph)
     except Exception as e:
