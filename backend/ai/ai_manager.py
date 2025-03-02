@@ -458,6 +458,10 @@ def extract_corrections(paragraph_bundle: List[Paragraph], response: str) -> Lis
 # TODO: put these in a separate correction helpers file:
 
 def post_process_correction(original: str, updated: str) -> str:
+    # Disallow the AI saying no corrections needed
+    if is_ai_no_corrections_needed_text(updated):
+        updated = original
+
     # Fix an extra "-\n" being in the updated text
     if updated.startswith("-\n") or updated.startswith("—"):
         updated = updated[1:].strip()
@@ -475,6 +479,11 @@ def post_process_correction(original: str, updated: str) -> str:
         if updated.endswith("---"):
             updated = updated[:-3].strip()
 
+        # Ultimately there are just multiple paragraphs here which is not supported, so just throw away each except
+        # the first one
+        if "---" in updated:
+            updated = updated.split("---")[0].strip()
+
     updated = unify_punctuation_marks(original, updated)
 
     if "*" not in original:
@@ -485,10 +494,14 @@ def post_process_correction(original: str, updated: str) -> str:
 
     # Weird double quote usage
     if "“‘" not in original and "“‘" in updated:
-        updated  = updated.replace("“‘", "“")
+        updated = updated.replace("“‘", "“")
         updated = updated.replace("'”", "”")
         # This probably does nothing:
         updated = updated.replace("´”", "”")
+
+    # If text ends up having text about the corrections, then that is incorrect
+    if is_ai_preamble(updated):
+        raise ValueError("AI correction summary found in updated text!")
 
     return fix_invalid_quote_punctuation(updated)
 
@@ -510,6 +523,8 @@ def fix_invalid_quote_punctuation(text: str) -> str:
         text = text.replace("?”,", "?”")
     if "…”," in text:
         text = text.replace("…”,", "…”")
+    if "!”," in text:
+        text = text.replace("!”,", "!”")
 
     if ".”," not in text and ",”." not in text:
         return text
@@ -727,6 +742,12 @@ def is_ai_preamble(text: str) -> bool:
             as_lower.startswith("here are the text paragraphs") or
             as_lower.startswith("here is the corrected") or
             as_lower.startswith("here's the corrected"))
+
+
+def is_ai_no_corrections_needed_text(text: str) -> bool:
+    as_lower = text.lower()
+
+    return as_lower.startswith("no corrections needed") or "text is already correct" in as_lower
 
 
 def is_ai_corrections_summary(parts: List[str]) -> bool:
