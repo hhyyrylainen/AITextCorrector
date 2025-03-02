@@ -257,6 +257,10 @@ class AIManager:
 
         technical_retries = MAX_TECHNICAL_RETRIES
 
+        if re_runs > 1:
+            # Allow more technical retries budget to hopefully get at least something done
+            technical_retries += 1
+
         # The timing here is not really reliable if there are jobs in the queue that make this have to wait
         start = time.time()
 
@@ -312,7 +316,7 @@ class AIManager:
                 break
 
             # Restore some technical retries for another re-run (but don't go over a limit)
-            technical_retries = min(technical_retries + MAX_TECHNICAL_RETRIES // 2, MAX_TECHNICAL_RETRIES)
+            technical_retries = min(technical_retries + 1, MAX_TECHNICAL_RETRIES)
 
             corrections_history.append(corrections)
 
