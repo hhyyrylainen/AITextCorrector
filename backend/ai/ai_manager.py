@@ -469,7 +469,26 @@ def post_process_correction(original: str, updated: str) -> str:
         if len(parts) == 2 and parts[0].strip() == parts[1].strip():
             updated = parts[0].strip()
 
+        if updated.startswith("---"):
+            updated = updated[3:].strip()
+
+        if updated.endswith("---"):
+            updated = updated[:-3].strip()
+
     updated = unify_punctuation_marks(original, updated)
+
+    if "*" not in original:
+        # Using "*" next to quotes for some reason
+        if "“*" in updated and "*”" in updated:
+            updated = updated.replace("“*", "*”")
+            updated = updated.replace("*”", "*”")
+
+    # Weird double quote usage
+    if "“‘" not in original and "“‘" in updated:
+        updated  = updated.replace("“‘", "“")
+        updated = updated.replace("'”", "”")
+        # This probably does nothing:
+        updated = updated.replace("´”", "”")
 
     return fix_invalid_quote_punctuation(updated)
 
