@@ -2,6 +2,9 @@ from typing import Dict, Any
 
 import requests
 
+# How long at most to allow *any* ollama API request to run (nothing is allowed to take longer, even if it might
+# benefit)
+MAX_API_TIME = 60 * 13
 
 # TODO: investigate if structured outputs or suffix would be nice
 
@@ -46,7 +49,7 @@ class OllamaClient:
         self._add_keep_alive(payload)
 
         try:
-            response = requests.post(url, json=payload)
+            response = requests.post(url, json=payload, timeout=MAX_API_TIME)
             response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
             return response.json()
         except requests.RequestException as e:
@@ -82,7 +85,7 @@ class OllamaClient:
         self._add_keep_alive(payload)
 
         try:
-            response = requests.post(url, json=payload)
+            response = requests.post(url, json=payload, timeout=MAX_API_TIME)
             response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
             return response.json()
         except requests.RequestException as e:
@@ -111,7 +114,7 @@ class OllamaClient:
         self._add_keep_alive(payload)
 
         try:
-            response = requests.post(url, json=payload)
+            response = requests.post(url, json=payload, timeout=MAX_API_TIME)
             response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
             return response.json()  # Return the parsed JSON response
         except requests.RequestException as e:
@@ -131,7 +134,7 @@ class OllamaClient:
         url = f"{self.base_url}/api/models/{model}"
 
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=45)
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
@@ -148,7 +151,7 @@ class OllamaClient:
         url = f"{self.base_url}/api/tags"
 
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=45)
             response.raise_for_status()
             raw_response = response.json()
 
@@ -170,7 +173,7 @@ class OllamaClient:
         url = f"{self.base_url}/api/ps"
 
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=45)
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
@@ -187,7 +190,7 @@ class OllamaClient:
         url = f"{self.base_url}/api/version"
 
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=30)
             response.raise_for_status()  # Raise an error for 4xx or 5xx responses
             version_data = response.json()  # Parse the response as JSON
             return version_data.get("version", "Unknown version")  # Safely extract the version
@@ -209,7 +212,7 @@ class OllamaClient:
         }
 
         try:
-            response = requests.post(url, json=payload)
+            response = requests.post(url, json=payload, timeout=MAX_API_TIME)
             print(response.content().decode("utf-8"))
             response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
             return response.json()["status"] == "success"  # Return the parsed JSON response
