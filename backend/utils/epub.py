@@ -159,6 +159,13 @@ def extract_epub_chapters(file_content: IO[bytes], use_span_squash=False) -> Lis
                                 if ">?”" in raw_html:
                                     paragraph_text = paragraph_text.replace(" ?", "?", raw_html.count(">?”"))
 
+                            if " ( " in paragraph_text:
+                                if ">(" in raw_html or "(<" in raw_html:
+                                    paragraph_text = paragraph_text.replace(" ( ", " (")
+                            if " ) " in paragraph_text:
+                                if ">)" in raw_html or ")<" in raw_html:
+                                    paragraph_text = paragraph_text.replace(" ) ", ") ")
+
                         paragraph_result.append(
                             Paragraph(text=paragraph_text, index=paragraph_counter, leadingSpace=leading_space))
                         paragraph_counter += 1
