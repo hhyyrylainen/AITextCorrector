@@ -1,7 +1,7 @@
 import zipfile
 from typing import IO, List, Dict
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString, CData
 from pydantic import BaseModel
 
 
@@ -74,19 +74,35 @@ def extract_epub_chapters(file_content: IO[bytes]) -> List[Chapter]:
                     leading_space = 0
 
                     for paragraph in paragraphs:
-                        # This seems to incorrectly concatenate emphasis sections with other sections
-                        # paragraph_text = paragraph.get_text(strip=True)  # Extract clean text from the paragraph
+                        paragraph_text = ""
 
-                        # This variant preserves spacing between text styling segments properly
-                        paragraph_text = paragraph.text.strip()
+                        # Custom extraction of text that tries to ensure no weird spacing and supporting em tags
+                        # embedded in the text
+                        for descendant in paragraph.descendants:
+                            # Fast skip uninteresting nodes
+                            if not isinstance(descendant, NavigableString):
+
+                                continue
+
+                            # And then only process string types we like
+                            descendant_type = type(descendant)
+
+                            if descendant_type == NavigableString or descendant_type == CData:
+                                # Ensure spacing
+                                if len(paragraph_text) > 0 and paragraph_text[-1] != " ":
+                                    paragraph_text += " "
+
+                                paragraph_text += descendant.string.strip()
 
                         # Ignore empty paragraphs or remarks
-                        skip = (not paragraph_text or paragraph_text.lower().startswith(
-                            ('note:', 'remark:', 'skip:', 'footer:', "chapter notes")))
+                        skip = (
+                                len(paragraph_text) == 0 or paragraph_text.isspace() or paragraph_text.lower().startswith(
+                            ('note:', 'remark:', 'skip:', 'footer:', "chapter notes"))
+                        )
 
                         # Ignore notes in ao3 epubs
                         if not skip and paragraph.parent.name == "blockquote" and "userstuff" in paragraph.parent.get(
-                                "class") :
+                                "class"):
                             skip = True
 
                         if skip:
