@@ -1,7 +1,8 @@
 import zipfile
 from typing import IO, List, Dict
+import re
 
-from bs4 import BeautifulSoup, NavigableString, CData
+from bs4 import BeautifulSoup
 from pydantic import BaseModel
 
 
@@ -16,7 +17,7 @@ class Chapter(BaseModel):
     paragraphs: List[Paragraph]
 
 
-def extract_epub_chapters(file_content: IO[bytes]) -> List[Chapter]:
+def extract_epub_chapters(file_content: IO[bytes], use_span_squash=False) -> List[Chapter]:
     """
     Extracts chapters as plain text from an EPUB file.
 
@@ -28,8 +29,12 @@ def extract_epub_chapters(file_content: IO[bytes]) -> List[Chapter]:
     """
     result = []
 
+    paragraph_extra_spaces = re.compile(r'\s{2,}')
+    # messy_spans = re.compile(r'<span[^>]*>\s*\w{1,2}\s*</span>(?!<span>\s)')
+    messy_spans = re.compile(r'<span[^>]*>\s*[^\WI]\s*</span>(?!<span>\s)')
+
     # Use a zipfile to read the EPUB content
-    with zipfile.ZipFile(file_content) as epub_zip:
+    with (zipfile.ZipFile(file_content) as epub_zip):
         # Locate the container file
         with epub_zip.open('META-INF/container.xml') as container_file:
             container_soup = BeautifulSoup(container_file, 'xml')
@@ -74,25 +79,22 @@ def extract_epub_chapters(file_content: IO[bytes]) -> List[Chapter]:
                     leading_space = 0
 
                     for paragraph in paragraphs:
-                        paragraph_text = ""
 
-                        # Custom extraction of text that tries to ensure no weird spacing and supporting em tags
-                        # embedded in the text
-                        for descendant in paragraph.descendants:
-                            # Fast skip uninteresting nodes
-                            if not isinstance(descendant, NavigableString):
+                        raw_html = str(paragraph)
+                        extended_extraction = False
 
-                                continue
-
-                            # And then only process string types we like
-                            descendant_type = type(descendant)
-
-                            if descendant_type == NavigableString or descendant_type == CData:
-                                # Ensure spacing
-                                if len(paragraph_text) > 0 and paragraph_text[-1] != " ":
-                                    paragraph_text += " "
-
-                                paragraph_text += descendant.string.strip()
+                        # It seems like spans spammed everywhere make the text very unclean so we need to fix that
+                        # by squashing stuff when it is detected. Though it is extremely hard to know when the spans
+                        # would actually help being ignored. Might need a custom extraction after all if this needs
+                        # to be improved further.
+                        if use_span_squash and messy_spans.search(raw_html):
+                            paragraph_text = paragraph.get_text(strip=True)
+                        else:
+                            # Need to extract with separators added as otherwise embedded emphasis sections are not
+                            # extracted correctly
+                            # noinspection PyArgumentList
+                            paragraph_text = paragraph.get_text(strip=True, separator=" ")
+                            extended_extraction = True
 
                         # Ignore empty paragraphs or remarks
                         skip = (
@@ -110,6 +112,52 @@ def extract_epub_chapters(file_content: IO[bytes]) -> List[Chapter]:
                             if len(paragraph_result) > 0:
                                 leading_space = 1
                             continue
+
+                        if extended_extraction:
+                            # TODO: put the following into a helper method and use a precompiled regex to detect if anything
+                            # needs to be done
+
+                            # Try to deal with situations with a bunch of extra added line changes etc. that may be added
+                            # as an artifact of the " " separator use.
+                            # Note that this sadly masks mistakes with multiple spaces in a row, but hopefully we don't
+                            # need to try to find those.
+                            # Hopefully there are no paragraphs with embedded line breaks so this doesn't needto detect
+                            # what kind of whitespace is replaced
+                            paragraph_text = paragraph_extra_spaces.sub(' ', paragraph_text)
+
+                            # Fixing special case mistakes
+                            # Quote that starts before an em section that is immediately in it
+                            if "“ " in paragraph_text:
+                                if "“<em" in raw_html:
+                                    paragraph_text = paragraph_text.replace("“ ", "“", raw_html.count("“<em"))
+                                if "“<span>" in raw_html:
+                                    paragraph_text = paragraph_text.replace("“ ", "“", raw_html.count("“<span>"))
+                                if "“</" in raw_html:
+                                    paragraph_text = paragraph_text.replace("“ ", "“", raw_html.count("“</"))
+
+                            if "” " in paragraph_text:
+                                if "”</em>." in raw_html:
+                                    paragraph_text = paragraph_text.replace("” ", "”", raw_html.count("”</em"))
+                                # if "”</span" in raw_html:
+                                #     paragraph_text = paragraph_text.replace(" ”", "”", raw_html.count("”</span"))
+
+                            if " ”" in paragraph_text:
+                                if "span>”" in raw_html:
+                                    paragraph_text = paragraph_text.replace(" ”", "”", raw_html.count("span>”"))
+
+                            if " “ " in paragraph_text:
+                                if "“</" in raw_html:
+                                    paragraph_text = paragraph_text.replace("“ ", "“", raw_html.count("“</"))
+
+                            if " ?" in paragraph_text or " ." in paragraph_text:
+                                if "span>?" in raw_html:
+                                    paragraph_text = paragraph_text.replace(" ?", "?", raw_html.count("span>?"))
+                                if "span>." in raw_html:
+                                    paragraph_text = paragraph_text.replace(" .", ".", raw_html.count("span>."))
+                                if ">?<" in raw_html:
+                                    paragraph_text = paragraph_text.replace(" ?", "?", raw_html.count(">?<"))
+                                if ">?”" in raw_html:
+                                    paragraph_text = paragraph_text.replace(" ?", "?", raw_html.count(">?”"))
 
                         paragraph_result.append(
                             Paragraph(text=paragraph_text, index=paragraph_counter, leadingSpace=leading_space))
