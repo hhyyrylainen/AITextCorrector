@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List
 
 import aiosqlite
+from aiosqlite import Connection
 
 from .config import ConfigModel, default_config
 from .project import Project, Chapter, Paragraph, CorrectionStatus
@@ -149,34 +150,7 @@ class Database:
 
                 # Insert each Chapter and its Paragraphs.
                 for chapter in project.chapters:
-                    chapter_cursor = await connection.execute(
-                        """
-                        INSERT INTO chapters (projectId, chapterIndex, name, summary)
-                        VALUES (?, ?, ?, ?)
-                        """,
-                        (project_id, chapter.chapterIndex, chapter.name, chapter.summary)
-                    )
-                    chapter_id = chapter_cursor.lastrowid
-
-                    for paragraph in chapter.paragraphs:
-                        await connection.execute(
-                            """
-                            INSERT INTO paragraphs (
-                                chapterId, paragraphIndex, originalText,
-                                correctedText, manuallyCorrectedText, leadingSpace, correctionStatus,
-                            )
-                            VALUES (?, ?, ?, ?, ?, ?)
-                            """,
-                            (
-                                chapter_id,
-                                paragraph.index,
-                                paragraph.originalText,
-                                paragraph.correctedText,
-                                paragraph.manuallyCorrectedText,
-                                paragraph.leadingSpace,
-                                paragraph.correctionStatus,
-                            )
-                        )
+                    await self._insert_chapter(connection, chapter, project_id)
 
                 # Commit the transaction if all inserts succeed.
                 await connection.commit()
@@ -385,6 +359,42 @@ class Database:
         except Exception as e:
             # Handle and log errors
             print(f"Error fetching chapter data: {e}")
+            return None
+
+    async def get_chapter_id_by_name(self, name: str, project_id: int) -> int | None:
+        """
+        Fetches a chapter ID by name.
+
+        Args:
+            name (str): The name of the chapter to retrieve.
+            project_id (int): The ID of the project to search in.
+
+        Returns:
+            int | None: The chapter id, or None if not found.
+        """
+        connection = self._connection
+
+        try:
+            # Fetch the main chapter data
+            async with connection.execute(
+                    """
+                    SELECT id
+                    FROM chapters
+                    WHERE projectId = ? AND name = ?
+                    """,
+                    (project_id, name),
+            ) as chapter_cursor:
+                chapter_data = await chapter_cursor.fetchone()
+
+            # If no chapter is found, return None
+            if not chapter_data:
+                return None
+
+            return int(chapter_data["id"])
+
+        except Exception as e:
+            # Handle and log errors
+            print(f"Error looking for chapter by name: {e}")
             return None
 
     async def get_chapter_paragraph_text(self, chapter_id: int) -> List[Paragraph]:
