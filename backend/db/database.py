@@ -243,6 +243,7 @@ class Database:
                                         raise ValueError(
                                             f"Failed to upgrade paragraph "
                                             f"{database_paragraph.partOfChapter}-{database_paragraph.index}")
+
                                 elif database_paragraph.leadingSpace != paragraph.leadingSpace:
                                     # Update just this property
                                     result = await connection.execute(
