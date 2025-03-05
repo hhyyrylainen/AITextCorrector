@@ -74,7 +74,11 @@ def extract_epub_chapters(file_content: IO[bytes]) -> List[Chapter]:
                     leading_space = 0
 
                     for paragraph in paragraphs:
-                        paragraph_text = paragraph.get_text(strip=True)  # Extract clean text from the paragraph
+                        # This seems to incorrectly concatenate emphasis sections with other sections
+                        # paragraph_text = paragraph.get_text(strip=True)  # Extract clean text from the paragraph
+
+                        # This variant preserves spacing between text styling segments properly
+                        paragraph_text = paragraph.text.strip()
 
                         # Ignore empty paragraphs or remarks
                         skip = (not paragraph_text or paragraph_text.lower().startswith(
