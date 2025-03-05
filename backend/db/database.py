@@ -225,8 +225,8 @@ class Database:
 
                                 if database_paragraph.originalText != paragraph.originalText:
                                     print(
-                                        f"New text for paragraph {paragraph_index} in chapter {chapter.name} "
-                                        f"in project {project.id}, resetting correction status")
+                                        f"New text for paragraph {paragraph_index} in chapter {chapter.chapterIndex}, "
+                                        f"{chapter.name} in project {project.id}, resetting correction status")
                                     result = await connection.execute(
                                         """
                                         UPDATE paragraphs
@@ -273,6 +273,7 @@ class Database:
 
         Args:
             project_id (int): The ID of the project to retrieve.
+            include_chapters (bool): If True, retrieves all chapters. If False, only retrieves the project table data.
 
         Returns:
             Project | None: The project data, or None if no project is found.
