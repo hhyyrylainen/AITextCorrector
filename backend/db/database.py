@@ -165,7 +165,108 @@ class Database:
 
         return project_id
 
-    async def get_project(self, project_id: int) -> Project | None:
+    async def update_project_chapters(self, project: Project, new_chapters: List[Chapter]):
+        """
+        Adds new chapters to an existing project. If a chapter already exists, it is not added again, but paragraphs
+        are updated. Note that removed paragraphs from the new text are not deleted from the database.
+
+        :param project: project to update (doesn't need to have chapters loaded)
+        :param new_chapters: new chapters to add to the project
+        :return:
+        """
+        if len(new_chapters) == 0:
+            return
+
+        connection = self._connection
+        async with self._lock:
+            try:
+                await connection.execute("BEGIN")
+
+                for chapter in new_chapters:
+                    chapter_id = await self.get_chapter_id_by_name(chapter.name, project.id)
+
+                    if chapter_id is None:
+                        # Inserting an entirely new chapter
+                        print(f"Inserting new chapter to project {project.id} with name: {chapter.name}")
+                        await self._insert_chapter(connection, chapter, project.id)
+                    else:
+                        # Updating a chapter. Check if the paragraphs are fine
+                        database_chapter = await self.get_chapter(chapter_id, include_paragraphs=True)
+
+                        for i, paragraph in enumerate(chapter.paragraphs):
+
+                            paragraph_index = i + 1
+
+                            if paragraph_index > len(database_chapter.paragraphs):
+                                # Adding new paragraphs
+                                print(
+                                    f"Adding new paragraph {paragraph_index} to chapter {chapter.name} in project {project.id}")
+                                await connection.execute(
+                                    """
+                                    INSERT INTO paragraphs (
+                                        chapterId, paragraphIndex, originalText,
+                                        correctedText, manuallyCorrectedText, leadingSpace, correctionStatus,
+                                    )
+                                    VALUES (?, ?, ?, ?, ?, ?)
+                                    """,
+                                    (
+                                        chapter_id,
+                                        paragraph_index,
+                                        paragraph.originalText,
+                                        paragraph.correctedText,
+                                        paragraph.manuallyCorrectedText,
+                                        paragraph.leadingSpace,
+                                        paragraph.correctionStatus,
+                                    )
+                                )
+                            else:
+                                # See if text is right and update it if not
+                                database_paragraph = database_chapter.paragraphs[i]
+
+                                if database_paragraph.originalText != paragraph.originalText:
+                                    print(
+                                        f"New text for paragraph {paragraph_index} in chapter {chapter.name} "
+                                        f"in project {project.id}, resetting correction status")
+                                    result = await connection.execute(
+                                        """
+                                        UPDATE paragraphs
+                                        SET originalText = ?, correctedText = ?, manuallyCorrectedText = ?, 
+                                            correctionStatus = ?, leadingSpace = ?
+                                        WHERE chapterId = ? AND paragraphIndex = ?
+                                        """,
+                                        (paragraph.originalText,
+                                         paragraph.correctedText, paragraph.manuallyCorrectedText,
+                                         paragraph.correctionStatus, paragraph.leadingSpace,
+                                         database_paragraph.partOfChapter, database_paragraph.index)
+                                    )
+                                    if result.rowcount == 0:
+                                        raise ValueError(
+                                            f"Failed to upgrade paragraph "
+                                            f"{database_paragraph.partOfChapter}-{database_paragraph.index}")
+                                elif database_paragraph.leadingSpace != paragraph.leadingSpace:
+                                    # Update just this property
+                                    result = await connection.execute(
+                                        """
+                                        UPDATE paragraphs
+                                        SET leadingSpace = ?
+                                        WHERE chapterId = ? AND paragraphIndex = ?
+                                        """,
+                                        (paragraph.leadingSpace, database_paragraph.partOfChapter,
+                                         database_paragraph.index)
+                                    )
+                                    if result.rowcount == 0:
+                                        raise ValueError(
+                                            f"Failed to upgrade paragraph "
+                                            f"{database_paragraph.partOfChapter}-{database_paragraph.index}")
+
+                # Commit the transaction if all inserts succeed.
+                await connection.commit()
+
+            except Exception as e:
+                await connection.rollback()
+                raise RuntimeError("Failed to write project text updates to the database.") from e
+
+    async def get_project(self, project_id: int, include_chapters=True) -> Project | None:
         """
         Fetches the primary data for a project, along with all associated chapters,
         but excludes the paragraphs to optimize data retrieval. Uses async operations.
@@ -194,20 +295,23 @@ class Database:
             if not project_data:
                 return None
 
-            # Fetch all associated chapters for the project
-            async with connection.execute(
-                    """
-                SELECT id, name, chapterIndex, summary
-                FROM chapters
-                WHERE projectId = ?
-                ORDER BY chapterIndex ASC
-                """,
-                    (project_id,),
-            ) as chapters_cursor:
-                chapters = [
-                    Chapter(id=row[0], projectId=project_id, name=row[1], chapterIndex=row[2], summary=row[3],
-                            paragraphs=[]) async for row in chapters_cursor
-                ]
+            if include_chapters:
+                # Fetch all associated chapters for the project
+                async with connection.execute(
+                        """
+                    SELECT id, name, chapterIndex, summary
+                    FROM chapters
+                    WHERE projectId = ?
+                    ORDER BY chapterIndex ASC
+                    """,
+                        (project_id,),
+                ) as chapters_cursor:
+                    chapters = [
+                        Chapter(id=row[0], projectId=project_id, name=row[1], chapterIndex=row[2], summary=row[3],
+                                paragraphs=[]) async for row in chapters_cursor
+                    ]
+            else:
+                chapters = []
 
             project = Project(id=project_data[0], name=project_data[1], correctionStrengthLevel=project_data[2],
                               stylePrompt=project_data[3], chapters=chapters)
@@ -615,6 +719,36 @@ class Database:
 
             # Immediately make new config available through the cache
             self._config_cache = new_config
+
+    async def _insert_chapter(self, connection: Connection, chapter: Chapter, project_id: int):
+        chapter_cursor = await connection.execute(
+            """
+            INSERT INTO chapters (projectId, chapterIndex, name, summary)
+            VALUES (?, ?, ?, ?)
+            """,
+            (project_id, chapter.chapterIndex, chapter.name, chapter.summary)
+        )
+        chapter_id = chapter_cursor.lastrowid
+
+        for paragraph in chapter.paragraphs:
+            await connection.execute(
+                """
+                INSERT INTO paragraphs (
+                    chapterId, paragraphIndex, originalText,
+                    correctedText, manuallyCorrectedText, leadingSpace, correctionStatus,
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    chapter_id,
+                    paragraph.index,
+                    paragraph.originalText,
+                    paragraph.correctedText,
+                    paragraph.manuallyCorrectedText,
+                    paragraph.leadingSpace,
+                    paragraph.correctionStatus,
+                )
+            )
 
     async def _migrate_database(self, db, existing_config):
         if existing_config["version"] == 1:

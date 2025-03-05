@@ -212,6 +212,27 @@ async def create_new_project(name: str = Form(), writingStyle: str = Form(), lev
     return {"id": created_id}
 
 
+@app.post("/api/projects/{project_id}/updateText")
+async def project_update_text(project_id: int, file: UploadFile = File()):
+    project = await database.get_project(project_id, include_chapters=False)
+
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    content_type = file.content_type
+
+    if content_type == "application/epub+zip":
+        chapters = extract_epub_chapters(file.file)
+    else:
+        raise HTTPException(status_code=415, detail="Unsupported file type to extract")
+
+    parsed_data = create_project("dummy", "dummy", 1, chapters)
+
+    await database.update_project_chapters(project, parsed_data.chapters)
+
+    return {"message": "Text updated"}
+
+
 @app.get("/api/chapters/{chapter_id}")
 async def get_chapter(chapter_id: int):
     chapter = await database.get_chapter(chapter_id, include_paragraphs=True)

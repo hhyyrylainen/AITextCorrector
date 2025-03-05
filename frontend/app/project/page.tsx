@@ -253,6 +253,14 @@ function Page() {
                         >
                             {correctionsGenerated ? "Corrections Generating..." : "Generate All Missing Corrections"}
                         </button>
+
+                        <br/>
+                        <h1>Settings</h1>
+                        <Link href={`/projectSettings?id=${projectId}`}>
+                            <button className="px-4 py-2 rounded-md shadow-sm focus:outline-none bg-blue-600 text-white">
+                                Modify This Project
+                            </button>
+                        </Link>
                     </>
                 ) : (
                     <p>No project found. Please go back to the project list.</p>
