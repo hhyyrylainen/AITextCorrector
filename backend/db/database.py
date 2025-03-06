@@ -737,9 +737,9 @@ class Database:
                 """
                 INSERT INTO paragraphs (
                     chapterId, paragraphIndex, originalText,
-                    correctedText, manuallyCorrectedText, leadingSpace, correctionStatus,
+                    correctedText, manuallyCorrectedText, leadingSpace, correctionStatus
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     chapter_id,
