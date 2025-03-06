@@ -143,12 +143,13 @@ class AIManager:
 
         print("Generating corrections for project:", project.name)
 
-        for chapter in project.chapters:
+        for i, chapter in enumerate(project.chapters):
             try:
                 # This doesn't require a recursively fetched project, so we need to fetch the chapters here again
                 fully_loaded_chapter = await database.get_chapter(chapter.id, True)
 
                 await self.generate_corrections(fully_loaded_chapter, database, project.correctionStrengthLevel)
+                print("Chapter", i + 1, "of", len(project.chapters), "done.")
             except Exception as e:
                 print("Error generating corrections for chapter:", chapter.name, "with error:", e)
                 continue
@@ -171,13 +172,16 @@ class AIManager:
 
         print(f"Generating corrections for chapter {chapter.chapterIndex}:", chapter.name)
 
-        for group in chunked_paragraphs(paragraphs_to_correct, config.simultaneousCorrectionSize):
+        work_to_do = chunked_paragraphs(paragraphs_to_correct, config.simultaneousCorrectionSize)
+
+        for i, group in enumerate(work_to_do):
 
             print("Correcting paragraph group with size:", len(group), "and total character count:", sum(
                 [len(paragraph.originalText) for paragraph in group]))
 
             try:
                 await self._generate_correction(group, correction_strength, config.correctionReRuns)
+                print(f"Done correcting {(i + 1) / len(work_to_do) * 100:.2f}% of chapter {chapter.chapterIndex}")
             except Exception as e:
                 print("Error generating correction for group with error:", e)
                 print("Ignoring this group and continuing with the rest of the chapter...")
