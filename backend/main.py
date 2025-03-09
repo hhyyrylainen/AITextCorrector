@@ -333,14 +333,17 @@ async def generate_correction(chapter_id: int, paragraph_index: int):
     # Need to get the project for the correction strength setting
     project = await database.get_project_by_chapter(paragraph.partOfChapter)
 
+    # And the chapter to know what the index of it is
+    chapter = await database.get_chapter(paragraph.partOfChapter)
+
     config = await database.get_config()
 
     ai_manager = await get_ai_manager()
 
     try:
         # As this is meant to be a fast API don't use re-runs
-        # await ai_manager.generate_single_correction(paragraph, project.correctionStrengthLevel, config.correctionReRuns)
-        await ai_manager.generate_single_correction(paragraph, project.correctionStrengthLevel, 0)
+        # await ai_manager.generate_single_correction(paragraph, chapter, project.correctionStrengthLevel, config.correctionReRuns)
+        await ai_manager.generate_single_correction(paragraph, chapter, project.correctionStrengthLevel, 0)
 
         await database.update_paragraph(paragraph)
     except Exception as e:

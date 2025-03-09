@@ -207,7 +207,8 @@ class AIManager:
                 [len(paragraph.originalText) for paragraph in group]))
 
             try:
-                await self._generate_correction(group, correction_strength, config.correctionReRuns)
+                await self._generate_correction(group, chapter.chapterIndex, correction_strength,
+                                                config.correctionReRuns)
                 print(f"Done correcting {(i + 1) / len(work_to_do) * 100:.2f}% of chapter {chapter.chapterIndex}")
             except Exception as e:
                 print("Error generating correction for group with error:", e)
@@ -221,10 +222,11 @@ class AIManager:
         if duration > 10:
             print("Generated corrections for chapter:", chapter.name, "in:", round(duration / 60, 1), "minutes")
 
-    async def generate_single_correction(self, paragraph: Paragraph, correction_strength: int, re_runs: int):
-        print("Generating correction for paragraph:", paragraph.index, "in chapter:", paragraph.partOfChapter)
+    async def generate_single_correction(self, paragraph: Paragraph, contained_in_chapter: Chapter,
+                                         correction_strength: int, re_runs: int):
+        print("Generating correction for paragraph:", paragraph.index, "in chapter:", contained_in_chapter.chapterIndex)
 
-        await self._generate_correction([paragraph], correction_strength, re_runs)
+        await self._generate_correction([paragraph], correction_strength, contained_in_chapter.chapterIndex, re_runs)
 
     def download_recommended(self):
         all_models = [DEFAULT_MODEL] + EXTRA_RECOMMENDED_MODELS
@@ -267,7 +269,8 @@ class AIManager:
 
         chapter.summary = response
 
-    async def _generate_correction(self, paragraph_bundle: List[Paragraph], correction_strength: int, re_runs: int):
+    async def _generate_correction(self, paragraph_bundle: List[Paragraph], chapter_index: int,
+                                   correction_strength: int, re_runs: int):
         if correction_strength == 1:
             prompt = TEXT_CORRECTION_PROMPT_LOW
         elif correction_strength == 2:
@@ -380,7 +383,7 @@ class AIManager:
             return
 
         corrections = pick_best_history(corrections_history, corrections)
-        apply_corrections(paragraph_bundle, corrections, time.time() - start)
+        apply_corrections(paragraph_bundle, corrections, chapter_index, time.time() - start)
 
     def _prompt_chat(self, message, model, extra_options=None, remove_think=False) -> str:
         self.currently_running = True
@@ -631,7 +634,8 @@ def convert_to_smart_quotes(text: str) -> str:
     return ''.join(work)
 
 
-def apply_corrections(paragraph_bundle: List[Paragraph], corrections: List[str], duration: float = 0.0):
+def apply_corrections(paragraph_bundle: List[Paragraph], corrections: List[str], chapter_index: int,
+                      duration: float = 0.0):
     needed_corrections = 0
     perfect_already = 0
 
@@ -663,7 +667,7 @@ def apply_corrections(paragraph_bundle: List[Paragraph], corrections: List[str],
             if paragraph.correctionStatus != CorrectionStatus.accepted and paragraph.correctionStatus != CorrectionStatus.reviewed:
                 paragraph.correctionStatus = CorrectionStatus.notRequired
 
-            # print("No correction needed for paragraph:", paragraph.index, "in chapter:", paragraph.partOfChapter)
+            # print("No correction needed for paragraph:", paragraph.index, "in chapter:", chapter_index)
         else:
             paragraph.correctedText = correction
             needed_corrections += 1
@@ -672,10 +676,10 @@ def apply_corrections(paragraph_bundle: List[Paragraph], corrections: List[str],
                 paragraph.correctionStatus = CorrectionStatus.generated
 
     if needed_corrections == 0:
-        print("No corrections needed for paragraph bundle in chapter:", paragraph_bundle[0].partOfChapter)
+        print("No corrections needed for paragraph bundle in chapter:", chapter_index)
     else:
         print("Needed corrections in", needed_corrections, "paragraph(s),", perfect_already,
-              "were perfect already, in chapter:", paragraph_bundle[0].partOfChapter)
+              "were perfect already, in chapter:", chapter_index)
 
     characters_per_second = sum([len(paragraph.originalText) for paragraph in paragraph_bundle]) / duration
     print("Processed in:", round(duration, 3), "seconds,", round(characters_per_second, 2), "characters/second")
