@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 DEFAULT_MODEL = "deepseek-r1:32b"
@@ -18,6 +20,7 @@ class ConfigModel(BaseModel):
     styleExcerptLength: int = DEFAULT_EXCERPT_LENGTH
     simultaneousCorrectionSize: int = DEFAULT_SIMULTANEOUS_CORRECTION_SIZE
     unusedAIUnloadDelay: int = DEFAULT_AI_UNLOAD_DELAY
+    customOllamaUrl: Optional[str] = None
 
 
 default_config = ConfigModel(

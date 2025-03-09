@@ -54,6 +54,7 @@ async def get_ai_manager():
                   latest_config.selectedModel)
             _ai_manager_instance.model = latest_config.selectedModel
         _ai_manager_instance.unload_delay = latest_config.unusedAIUnloadDelay
+        _ai_manager_instance.custom_ollama = latest_config.customOllamaUrl
 
     return _ai_manager_instance
 
@@ -503,6 +504,10 @@ async def update_config(new_config: ConfigModel):
                 "message": "Selected AI model is missing.",
             },
         )
+
+    # Remove a trailing '/' if one exists
+    if len(new_config.customOllamaUrl) > 0 and new_config.customOllamaUrl[-1] == '/':
+        new_config.customOllamaUrl = new_config.customOllamaUrl[:-1]
 
     await database.update_config(new_config)
 

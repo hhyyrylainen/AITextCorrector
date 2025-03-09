@@ -6,6 +6,9 @@ import requests
 # benefit)
 MAX_API_TIME = 60 * 13
 
+DEFAULT_LOCAL_OLLAMA = "http://localhost:11434"
+
+
 # TODO: investigate if structured outputs or suffix would be nice
 
 class OllamaClient:
@@ -13,15 +16,19 @@ class OllamaClient:
     A client for interacting with the local Ollama API.
     """
 
-    def __init__(self, base_url: str = "http://localhost:11434", unload_delay=None):
+    def __init__(self, base_url: str = None, unload_delay=None):
         """
         Initialize the OllamaClient with the base URL for the Ollama API.
         
         Args:
-            base_url (str): The base URL of the local Ollama API.
+            base_url (str): The base URL of the local Ollama API. Or None to use the default.
             :param unload_delay: None or time in seconds to wait before unloading a model
         """
         self.base_url = base_url
+
+        if not self.base_url:
+            self.base_url = DEFAULT_LOCAL_OLLAMA
+
         self.unload_delay = unload_delay
 
     def submit_chat_message(self, model: str, message: str, extra_options: Dict[str, Any] = None) -> Dict[str, Any]:

@@ -12,6 +12,7 @@ type Config = {
     styleExcerptLength: number;
     simultaneousCorrectionSize: number;
     unusedAIUnloadDelay: number;
+    customOllamaUrl: string;
 };
 
 // Utility function to fetch and handle responses
@@ -32,7 +33,9 @@ export default function AppSettings() {
         styleExcerptLength: 5000,
         simultaneousCorrectionSize: 200,
         unusedAIUnloadDelay: 300,
+        customOllamaUrl: "",
     }); // Current form settings
+
     const [initialConfig, setInitialConfig] = useState<Config>(config); // Store fetched config to reset
     const [loading, setLoading] = useState(true); // Track data loading state
     const [saving, setSaving] = useState(false); // Track save button state
@@ -60,6 +63,10 @@ export default function AppSettings() {
                     API_CONFIG_URL,
                     "Failed to fetch configuration."
                 );
+
+                if (!initialConfigData.customOllamaUrl)
+                    initialConfigData.customOllamaUrl = "";
+
                 setConfig(initialConfigData);
                 setInitialConfig(initialConfigData);
 
@@ -260,6 +267,20 @@ export default function AppSettings() {
                             />
                         </div>
 
+                        {/* New field for custom Ollama URL */}
+                        <div className="form-group">
+                            <label htmlFor="customOllamaUrl" className="block text-sm font-medium text-gray-700">
+                                Custom Ollama URL</label>
+                            <input
+                                type="url"
+                                id="customOllamaUrl"
+                                name="customOllamaUrl"
+                                value={config.customOllamaUrl}
+                                onChange={handleChange}
+                                placeholder="Add custom ollama URL if required"
+                                className="mt-1 p-2 block w-full border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            />
+                        </div>
 
                         {/* Action Buttons */}
                         <div className="flex gap-4">

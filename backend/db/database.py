@@ -12,7 +12,7 @@ from aiosqlite import Connection
 from .config import ConfigModel, default_config
 from .project import Project, Chapter, Paragraph, CorrectionStatus
 
-DATABASE_VERSION = 4
+DATABASE_VERSION = 5
 
 
 def get_db_path() -> Path:
@@ -679,7 +679,8 @@ class Database:
                                      autoSummaries=bool(row["autoSummaries"]),
                                      styleExcerptLength=row["styleExcerptLength"],
                                      simultaneousCorrectionSize=row["simultaneousCorrectionSize"],
-                                     unusedAIUnloadDelay=row["unusedAIUnloadDelay"])
+                                     unusedAIUnloadDelay=row["unusedAIUnloadDelay"],
+                                     customOllamaUrl=row["customOllamaUrl"])
             else:
                 # Return default values if no configuration exists
                 print("WARNING: no configuration found, using default values")
@@ -705,7 +706,7 @@ class Database:
             await db.execute("""
                 UPDATE config
                 SET selectedModel = ?, correctionReRuns = ?, autoSummaries = ?, styleExcerptLength = ?, 
-                simultaneousCorrectionSize = ?, unusedAIUnloadDelay = ?
+                simultaneousCorrectionSize = ?, unusedAIUnloadDelay = ?, customOllamaUrl = ?
                 WHERE id = ?
             """, (
                 new_config.selectedModel,
@@ -714,6 +715,7 @@ class Database:
                 new_config.styleExcerptLength,
                 new_config.simultaneousCorrectionSize,
                 new_config.unusedAIUnloadDelay,
+                new_config.customOllamaUrl,
                 1
             ))
 
@@ -773,6 +775,10 @@ class Database:
             await db.execute("ALTER TABLE paragraphs ADD COLUMN correctionStatus INTEGER NOT NULL DEFAULT 0")
 
             await self._on_version_migrated(db, existing_config, 4)
+        if existing_config["version"] == 4:
+            await db.execute("ALTER TABLE config ADD COLUMN customOllamaUrl TEXT")
+
+            await self._on_version_migrated(db, existing_config, 5)
         else:
             raise Exception(f"Unknown database version: {existing_config['version']}")
 
@@ -794,7 +800,8 @@ class Database:
                 autoSummaries BOOLEAN NOT NULL DEFAULT 0,
                 styleExcerptLength INTEGER NOT NULL DEFAULT 1000,
                 simultaneousCorrectionSize INTEGER NOT NULL DEFAULT 200,
-                unusedAIUnloadDelay INTEGER NOT NULL DEFAULT 120
+                unusedAIUnloadDelay INTEGER NOT NULL DEFAULT 120,
+                customOllamaUrl TEXT
             );
         """)
 

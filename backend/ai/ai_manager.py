@@ -91,6 +91,7 @@ class AIManager:
         self.unload_delay = 300
         self.currently_running = False
         self.model = "deepseek-r1:32b"
+        self.custom_ollama = None
         self.job_queue = JobQueue()
 
     def configure_model(self, model: str):
@@ -357,7 +358,7 @@ class AIManager:
 
     def _prompt_chat(self, message, model, extra_options=None, remove_think=False) -> str:
         self.currently_running = True
-        client = OllamaClient(unload_delay=self.unload_delay)
+        client = self._get_client()
 
         response = client.submit_chat_message(model, message, extra_options)
         self.currently_running = False
@@ -378,11 +379,14 @@ class AIManager:
 
     def _download_model(self, model):
         self.currently_running = True
-        client = OllamaClient()
+        client = self._get_client()
         if client.download_model(model):
             print("Downloaded model: ", model)
 
         self.currently_running = False
+
+    def _get_client(self):
+        return OllamaClient(self.custom_ollama, unload_delay=self.unload_delay)
 
 
 def extract_corrections(paragraph_bundle: List[Paragraph], response: str) -> List[str]:
