@@ -92,6 +92,7 @@ class AIManager:
         self.currently_running = False
         self.model = "deepseek-r1:32b"
         self.custom_ollama = None
+        self._generating_all = False
         self.job_queue = JobQueue()
 
     def configure_model(self, model: str):
@@ -137,6 +138,31 @@ class AIManager:
                 "Cannot generate summary for chapter with no paragraphs (was the right database fetch method used?")
 
         await self._generate_summary(chapter, chapter.paragraphs)
+
+    async def generate_corrections_for_all(self, projects: List[Project], database: Database):
+        if self._generating_all:
+            print("Already generating corrections for all projects, skipping...")
+            return
+
+        self._generating_all = True
+
+        try:
+            for project in projects:
+                print(f"Generating any missing corrections for project {project.id}")
+                start = time.time()
+
+                # Fetch the project with chapters as that is required for the method call
+                project = await database.get_project(project.id, include_chapters=True)
+
+                await self.generate_corrections_for_project(project, database)
+
+                print(f"Done generating corrections for project {project.name}, it took "
+                      f"{round((time.time() - start) / 60, 2)} minutes.")
+        except Exception as e:
+            print("Error generating corrections for all projects:", e)
+        finally:
+            print("Ending generating all corrections")
+            self._generating_all = False
 
     async def generate_corrections_for_project(self, project: Project, database: Database):
         if not project.chapters:

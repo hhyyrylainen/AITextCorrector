@@ -142,6 +142,15 @@ async def get_projects():
     return await database.get_projects()
 
 
+@app.post("/api/projects/generateCorrections")
+async def generate_project_corrections(background_tasks: BackgroundTasks = BackgroundTasks()):
+    projects = await database.get_projects()
+
+    ai_manager = await get_ai_manager()
+
+    background_tasks.add_task(ai_manager.generate_corrections_for_all, projects, database)
+
+
 @app.get("/api/projects/{project_id}")
 async def get_project(project_id: int):
     return await database.get_project(project_id)
