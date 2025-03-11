@@ -294,7 +294,10 @@ function Page() {
                         </div>
 
                         {showExportMode && (
-                            <p>Export corrections from this chapter in bulk. TODO: implement this!</p>
+                            <a href={`/api/export/chapter/${chapterId}/${chapter.projectId}-${chapter.name}.txt`}
+                               target="_blank" className="text-blue-600 hover:underline">
+                                View all corrections as text
+                            </a>
                         )}
 
                         <div className={"max-w-2xl"}>
