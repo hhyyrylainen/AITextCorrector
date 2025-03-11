@@ -5,7 +5,7 @@ from asyncio import Lock
 from typing import Dict, Optional
 
 from fastapi import FastAPI, UploadFile, HTTPException, Form, File, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from ai.ai_manager import AIManager
@@ -14,6 +14,7 @@ from db.config import ConfigModel
 from db.project import create_project, CorrectionStatus
 from db.database import database
 from utils.epub import extract_epub_chapters, chapters_to_plain_text
+from utils.correction_formatter import format_chapter_corrections_as_text, parse_mode
 
 # FastAPI web app setup
 app = FastAPI()
@@ -447,6 +448,56 @@ async def paragraph_reject(chapter_id: int, paragraph_index: int):
     except Exception as e:
         raise HTTPException(status_code=500,
                             detail="Error: " + str(e) + " while saving paragraph. Try again later.")
+
+
+#######################
+# Corrections exporting
+#######################
+@app.get("/api/export/project/{project_id}/{name}", response_class=PlainTextResponse)
+async def export_corrections(project_id: int, name: str, mode: str = "correctionsWithOriginal"):
+    try:
+        parsed_mode = parse_mode(mode)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid mode")
+
+    _, name_extension = os.path.splitext(name)
+
+    project = await database.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if name_extension == ".txt":
+        text = ""
+        for chapter in project.chapters:
+            if len(text) > 0:
+                text += "\n\n"
+
+            text += f"# Chapter {chapter.chapterIndex} of {len(project.chapters)} - {chapter.name}:\n\n"
+
+            text += await format_chapter_corrections_as_text(chapter, parsed_mode, database)
+
+        return text
+    else:
+        raise HTTPException(status_code=415, detail="Unsupported file type to export")
+
+
+@app.get("/api/export/chapter/{chapter_id}/{name}", response_class=PlainTextResponse)
+async def export_chapter_corrections(chapter_id: int, name: str, mode: str = "correctionsWithOriginal"):
+    try:
+        parsed_mode = parse_mode(mode)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid mode")
+
+    _, name_extension = os.path.splitext(name)
+
+    chapter = await database.get_chapter(chapter_id)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+
+    if name_extension == ".txt":
+        return await format_chapter_corrections_as_text(chapter, parsed_mode, database)
+    else:
+        raise HTTPException(status_code=415, detail="Unsupported file type to export")
 
 
 ######################
