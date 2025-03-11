@@ -41,13 +41,21 @@ async def format_chapter_corrections_as_text(chapter: Chapter, mode: ExportMode,
         text += f"Paragraph {paragraph.index}:\n"
 
         if mode == ExportMode.correctionsWithOriginal:
-            text += f"Original: {paragraph.originalText}\n"
-            text += f"Correction: {paragraph.correctedText}\n"
+            # Extra space is added here so that the original text will line up
+            text += f"Original  : {paragraph.originalText}\n"
+
+            if paragraph.manuallyCorrectedText:
+                text += f"Correction: {paragraph.manuallyCorrectedText}\n"
+            else:
+                text += f"Correction: {paragraph.correctedText}\n"
 
             text += f"\nCorrection highlighted:\n"
 
             try:
-                text += highlight_diff(paragraph.originalText, paragraph.correctedText)
+                if paragraph.manuallyCorrectedText:
+                    text += highlight_diff(paragraph.originalText, paragraph.manuallyCorrectedText)
+                else:
+                    text += highlight_diff(paragraph.originalText, paragraph.correctedText)
             except Exception as e:
                 text += f"## Error highlighting diff: {e}"
                 print(f"Error highlighting diff: {e}")
