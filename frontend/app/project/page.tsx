@@ -254,6 +254,11 @@ function Page() {
                             {correctionsGenerated ? "Corrections Generating..." : "Generate All Missing Corrections"}
                         </button>
 
+                        <a href={`/api/export/project/${projectId}/${project.name}.txt`} target="_blank"
+                            className="text-blue-600 hover:underline">
+                            View all corrections as text
+                        </a>
+
                         <br/>
                         <h1>Settings</h1>
                         <Link href={`/projectSettings?id=${projectId}`}>
