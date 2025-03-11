@@ -130,6 +130,40 @@ function Page() {
         }
     }
 
+    const openAcceptedParagraphs = async () => {
+        try {
+            const response = await fetch(`/api/chapters/${chapterId}/acceptedParagraphs`);
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.error) {
+                    setErrorMessage(data.error);
+                } else if (!Array.isArray(data)) {
+                    setErrorMessage("Failed to get list of paragraphs to show. Please try again.");
+                } else {
+                    setCorrectionStates((prev) => {
+
+                        const result = {...prev};
+
+                        for (const id of data) {
+                            result[id] = true;
+                        }
+
+                        return result;
+                    });
+
+                    if (data.length == 0) {
+                        setErrorMessage("No accepted paragraphs found. Please approve some corrections first.");
+                    }
+                }
+            } else {
+                setErrorMessage("Failed to get list of paragraphs with approved corrections. Please try again.");
+            }
+        } catch {
+            setErrorMessage("An error occurred while fetching paragraphs list. Please try again.");
+        }
+    }
+
     const toggleParagraphCorrection = (id: number) => {
         // Toggle the correction state for the given paragraph ID
         setCorrectionStates((prev) => ({
@@ -184,6 +218,13 @@ function Page() {
                     onClick={() => setParagraphCorrection(true)}
                 >
                     {"Expand All"}
+                </button>
+
+                <button
+                    className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
+                    onClick={openAcceptedParagraphs}
+                >
+                    {"Expand Accepted"}
                 </button>
 
                 <button
@@ -286,7 +327,7 @@ function Page() {
                             {commonParagraphControls()}
 
                             <button
-                                className="ml-4 px-4 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
+                                className="ml-4 px-4 my-2 py-2 bg-gray-200 text-gray-600 rounded-md hover:bg-gray-300"
                                 onClick={() => setShowExportMode(!showExportMode)}
                             >
                                 {"Export..."}

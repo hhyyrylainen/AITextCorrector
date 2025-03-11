@@ -570,6 +570,29 @@ class Database:
             print(f"Error fetching paragraph data: {e}")
             return []
 
+    async def get_paragraphs_with_accepted_corrections(self, chapter_id) -> List[int]:
+        connection = self._connection
+
+        try:
+            # Fetch paragraphs for the specified chapter
+            async with connection.execute(
+                    f"""
+                    SELECT paragraphIndex
+                    FROM paragraphs
+                    WHERE chapterId = ? AND correctionStatus = {CorrectionStatus.accepted.value}
+                    """,
+                    (chapter_id,),
+            ) as paragraphs_cursor:
+                return [
+                    int(row["paragraphIndex"])
+                    async for row in paragraphs_cursor
+                ]
+
+        except Exception as e:
+            # Handle and log database errors (optional logging)
+            print(f"Error fetching paragraph data: {e}")
+            return []
+
     async def update_chapter(self, chapter: Chapter):
         """
         Updates an existing chapter's name and summary but does not modify the projectId or paragraphs.

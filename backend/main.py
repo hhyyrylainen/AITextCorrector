@@ -303,7 +303,7 @@ async def generate_chapter_corrections(chapter_id: int, background_tasks: Backgr
 async def chapter_paragraphs_needing_actions(chapter_id: int):
     """
     Endpoint to get a list of paragraphs with corrections for a specific chapter.
-    :param chapter_id: The ID of the chapter to regenerate the summary for.
+    :param chapter_id: The ID of the chapter the paragraphs belong to.
     :return: On success a list of paragraph ids with corrections.
     """
     try:
@@ -311,6 +311,21 @@ async def chapter_paragraphs_needing_actions(chapter_id: int):
     except Exception as e:
         raise HTTPException(status_code=500,
                             detail="Error: " + str(e) + " while getting paragraphs with corrections.")
+
+
+@app.get("/api/chapters/{chapter_id}/acceptedParagraphs")
+async def chapter_paragraphs_with_accepted_corrections(chapter_id: int):
+    """
+    Endpoint to get a list of paragraphs with approved corrections for a specific chapter. To view them for an easy
+    list of required corrections.
+    :param chapter_id: The ID of the chapter the paragraphs belong to.
+    :return: On success a list of paragraph ids with approved corrections.
+    """
+    try:
+        return await database.get_paragraphs_with_accepted_corrections(chapter_id)
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail="Error: " + str(e) + " while getting paragraphs in accepted state.")
 
 
 @app.get("/api/chapters/{chapter_id}/paragraphs/{paragraph_index}")
