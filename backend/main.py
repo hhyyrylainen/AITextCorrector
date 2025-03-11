@@ -5,8 +5,9 @@ from asyncio import Lock
 from typing import Dict, Optional
 
 from fastapi import FastAPI, UploadFile, HTTPException, Form, File, BackgroundTasks
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import RedirectResponse
 
 from ai.ai_manager import AIManager
 from ai.ollama_client import OllamaClient
@@ -281,7 +282,7 @@ async def regenerate_chapter_summary(chapter_id: int):
 async def generate_chapter_corrections(chapter_id: int, background_tasks: BackgroundTasks = BackgroundTasks()):
     """
     Endpoint to request generations of all missing corrections for a specific chapter.
-    :param chapter_id: The ID of the chapter to generate corretions for.
+    :param chapter_id: The ID of the chapter to generate corrections for.
     :param background_tasks: Background tasks object to add the task to.
     :return: Success message if the request to generate is successfully queued.
     """
@@ -463,6 +464,40 @@ async def paragraph_reject(chapter_id: int, paragraph_index: int):
     except Exception as e:
         raise HTTPException(status_code=500,
                             detail="Error: " + str(e) + " while saving paragraph. Try again later.")
+
+
+##########
+# Zen mode
+##########
+@app.get("/api/redirect/zen/{chapter_id}", response_class=HTMLResponse)
+async def chapter_paragraphs_needing_actions(chapter_id: int):
+    """
+    Redirects to the zen page for a specific chapter.
+    :param chapter_id: The ID of the chapter.
+    :return: On success a redirect to the zen page.
+    """
+    try:
+        corrections = await database.get_paragraphs_ids_needing_actions(chapter_id)
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail="Error: " + str(e) + " while getting paragraphs with corrections.")
+
+    if len(corrections) == 0:
+        # Nothing needs to be done, so return a small html page saying so
+        first_index = 1
+        zen_url = f"/zen?chapterId={chapter_id}&paragraphIndex={first_index}"
+        return f"""
+            <html>
+                <head><title>No Corrections</title></head>
+                <body>
+                    <h1>There is nothing to correct here.</h1>
+                    <p>If you'd still like to visit the Zen page, click the link below:</p>
+                    <p><a href="{zen_url}">Go to the Zen page</a></p>
+                </body>
+            </html>
+            """
+    # Redirect to the first correction if corrections are found
+    return RedirectResponse(url="/zen?chapterId=" + str(chapter_id) + "&paragraphIndex=" + str(corrections[0]))
 
 
 #######################
