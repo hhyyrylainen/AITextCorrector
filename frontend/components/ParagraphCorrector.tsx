@@ -2,10 +2,10 @@
 
 import {useEffect, useState, useRef} from "react";
 import {DiffEditor} from '@monaco-editor/react';
-
-import {CorrectionStatus, Paragraph} from "@/app/projectDefinitions";
 import {editor} from "monaco-editor";
 import IStandaloneDiffEditor = editor.IStandaloneDiffEditor;
+
+import {CorrectionStatus, Paragraph} from "@/app/projectDefinitions";
 
 type ParagraphCorrectorProps = {
     paragraph: Paragraph;
