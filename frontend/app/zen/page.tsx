@@ -1,6 +1,6 @@
 "use client";
 
-import {Suspense, useEffect, useState} from "react";
+import {Suspense, useEffect, useState, useRef} from "react";
 import {useSearchParams} from "next/navigation"; // Hook to access query parameters
 import Link from "next/link";
 
@@ -23,6 +23,8 @@ function Page() {
 
     const [generatingCorrections, setGeneratingCorrections] = useState(false);
     const [correctionsGenerated, setCorrectionsGenerated] = useState(false);
+
+    const correctorCenterRef = useRef<HTMLDivElement>(null);
 
     // Fetch the paragraph data from the backend when `chapterId` is available
     useEffect(() => {
@@ -92,6 +94,13 @@ function Page() {
         }
     };
 
+    // Center view on the corrector when it opens
+    useEffect(() => {
+        if (correctorCenterRef.current) {
+            correctorCenterRef.current.scrollIntoView({behavior: "instant", block: "center"});
+        }
+    }, [paragraph]);
+
     const bgColourFromState = (paragraph: Paragraph) => {
         if (paragraph.correctionStatus == CorrectionStatus.accepted) {
             return "bg-green-100";
@@ -151,7 +160,7 @@ function Page() {
             <main className="flex flex-col gap-8 items-center">
 
                 {/* Spacing to allow scrolling to work */}
-                <div className="h-72"/>
+                <div style={{height: "472px"}}/>
 
                 {/* Error message */}
                 {errorMessage && (
@@ -176,7 +185,7 @@ function Page() {
                     <p>Loading paragraph data...</p>
                 ) : paragraph ? (
                         <>
-                            <div className={"flex items-center gap-4 w-full"}>
+                            <div className={"flex items-center gap-4 w-full"} ref={correctorCenterRef}>
                                 {paragraph.correctionStatus == CorrectionStatus.notGenerated ? (
                                     <>
                                         <p>
@@ -217,7 +226,7 @@ function Page() {
                 </div>
 
                 {/* Spacing to allow scrolling to work */}
-                <div className="h-72"/>
+                <div style={{height: "472px"}}/>
             </main>
         </div>
     );
