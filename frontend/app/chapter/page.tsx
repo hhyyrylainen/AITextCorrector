@@ -258,9 +258,18 @@ function Page() {
                 <h1>Chapter {chapter?.chapterIndex}: {chapter?.name || chapterId}</h1>
 
                 {chapter && (
-                    <Link href={`/project?id=${chapter.projectId}`} className={"text-blue-600 hover:underline text-sm"}>
-                        In Project {chapter.projectId}
-                    </Link>
+                    <div>
+                        <Link href={`/project?id=${chapter.projectId}`}
+                              className={"text-blue-600 hover:underline text-sm"}>
+                            In Project {chapter.projectId}
+                        </Link>
+                        <br/>
+
+                        <Link href={`/api/redirect/zen/${chapter.id}`}
+                           className={"text-blue-600 hover:underline text-sm"}>
+                            Go Zen
+                        </Link>
+                    </div>
                 )}
 
                 {/* Error message for fetching chapter or generating summary */}
@@ -340,6 +349,11 @@ function Page() {
                                 View all corrections as text
                             </a>
                         )}
+
+                        <Link href={`/api/redirect/zen/${chapter.id}`}
+                           className={"text-blue-600 hover:underline text-sm"}>
+                            Go Zen
+                        </Link>
 
                         <div className={"max-w-2xl"}>
                             <h2>Summary of Chapter</h2>
