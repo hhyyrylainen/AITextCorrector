@@ -593,6 +593,36 @@ class Database:
             print(f"Error fetching paragraph data: {e}")
             return []
 
+    async def get_paragraphs_around(self, chapter_id, paragraph_index, num_around=2) -> List[Paragraph]:
+        connection = self._connection
+
+        try:
+            async with connection.execute(
+                    f"""
+                    SELECT paragraphIndex, originalText, leadingSpace, correctionStatus, correctedText, manuallyCorrectedText
+                    FROM paragraphs
+                    WHERE chapterId = ? AND paragraphIndex BETWEEN ? AND ?
+                    ORDER BY paragraphIndex ASC
+                    """,
+                    (chapter_id, paragraph_index - num_around, paragraph_index + num_around),
+            ) as paragraphs_cursor:
+                return [
+                    Paragraph(
+                        partOfChapter=chapter_id,
+                        index=row["paragraphIndex"],
+                        originalText=row["originalText"],
+                        leadingSpace=row["leadingSpace"],
+                        correctedText=row["correctedText"],
+                        manuallyCorrectedText=row["manuallyCorrectedText"],
+                        correctionStatus=row["correctionStatus"],
+                    )
+                    async for row in paragraphs_cursor
+                ]
+
+        except Exception as e:
+            print(f"Error fetching paragraph data: {e}")
+            return []
+
     async def update_chapter(self, chapter: Chapter):
         """
         Updates an existing chapter's name and summary but does not modify the projectId or paragraphs.

@@ -486,6 +486,7 @@ async def chapter_paragraphs_needing_actions(chapter_id: int):
         # Nothing needs to be done, so return a small html page saying so
         first_index = 1
         zen_url = f"/zen?chapterId={chapter_id}&paragraphIndex={first_index}"
+        chapter_url = f"/chapter?id={chapter_id}"
         return f"""
             <html>
                 <head><title>No Corrections</title></head>
@@ -493,11 +494,41 @@ async def chapter_paragraphs_needing_actions(chapter_id: int):
                     <h1>There is nothing to correct here.</h1>
                     <p>If you'd still like to visit the Zen page, click the link below:</p>
                     <p><a href="{zen_url}">Go to the Zen page</a></p>
+                    <p><a href="{chapter_url}">Or return to the chapter</a></p>
                 </body>
             </html>
             """
     # Redirect to the first correction if corrections are found
     return RedirectResponse(url="/zen?chapterId=" + str(chapter_id) + "&paragraphIndex=" + str(corrections[0]))
+
+
+@app.get("/api/zen/nextParagraph/{chapter_id}")
+async def get_next_paragraph(chapter_id: int, current: int):
+    # TODO: could probably make the database fetch much more efficient here
+    try:
+        corrections = await database.get_paragraphs_ids_needing_actions(chapter_id)
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail="Error: " + str(e) + " while getting paragraphs with corrections.")
+
+    if len(corrections) == 0:
+        return {"error": "Nothing more to correct"}
+
+    for index in corrections:
+        if index > current:
+            return {"next": index}
+
+    raise Exception("Shouldn't get here")
+
+
+@app.get("/api/zen/load/{chapter_id}")
+async def get_zen_paragraphs(chapter_id: int, current: int):
+    # Load the current and nearby paragraphs for correction display in the zen view
+    try:
+        return await database.get_paragraphs_around(chapter_id, current)
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail="Error: " + str(e) + " while getting paragraphs for zen.")
 
 
 #######################
