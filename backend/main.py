@@ -470,7 +470,7 @@ async def paragraph_reject(chapter_id: int, paragraph_index: int):
 # Zen mode
 ##########
 @app.get("/api/redirect/zen/{chapter_id}", response_class=HTMLResponse)
-async def chapter_paragraphs_needing_actions(chapter_id: int):
+async def redirect_to_zen(chapter_id: int):
     """
     Redirects to the zen page for a specific chapter.
     :param chapter_id: The ID of the chapter.
@@ -503,7 +503,7 @@ async def chapter_paragraphs_needing_actions(chapter_id: int):
 
 
 @app.get("/api/zen/nextParagraph/{chapter_id}")
-async def get_next_paragraph(chapter_id: int, current: int):
+async def get_next_paragraph(chapter_id: int, current: int, reverse: bool = False):
     # TODO: could probably make the database fetch much more efficient here
     try:
         corrections = await database.get_paragraphs_ids_needing_actions(chapter_id)
@@ -514,11 +514,22 @@ async def get_next_paragraph(chapter_id: int, current: int):
     if len(corrections) == 0:
         return {"error": "Nothing more to correct"}
 
-    for index in corrections:
-        if index > current:
-            return {"next": index}
+    if reverse:
+        last_seen = None
+        for index in corrections:
+            if index < current:
+                last_seen = index
 
-    raise Exception("Shouldn't get here")
+        if last_seen is not None:
+            return {"next": last_seen}
+        else:
+            return {"next": corrections[0]}
+    else:
+        for index in corrections:
+            if index > current:
+                return {"next": index}
+
+        return {"next": corrections[len(corrections) - 1]}
 
 
 @app.get("/api/zen/load/{chapter_id}")
