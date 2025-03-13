@@ -10,8 +10,8 @@ import IStandaloneDiffEditor = editor.IStandaloneDiffEditor;
 
 type ZenCorrectorCorrectorProps = {
     paragraph: Paragraph;
-    onMoveToNextAction: () => void;
-    onMoveToPreviousAction: () => void;
+    onMoveToNextAction: () => Promise<void>;
+    onMoveToPreviousAction: () => Promise<void>;
 };
 
 // A simple component for paragraph correction
@@ -102,7 +102,9 @@ export default function ZenCorrector({
             setError(null); // Reset any previous errors
 
             // Done so move to next
-            onMoveToNextAction();
+            // This doesn't await to make things more responsive feeling
+            onMoveToNextAction().then(_ => {
+            });
 
         } catch (err) {
             console.error("Error requesting approval of paragraph data:", err);
@@ -127,7 +129,8 @@ export default function ZenCorrector({
             setError(null); // Reset any previous errors
 
             // Discard data and move to next
-            onMoveToNextAction();
+            onMoveToNextAction().then(_ => {
+            });
 
         } catch (err) {
             console.error("Error requesting rejection of paragraph data:", err);
@@ -177,6 +180,32 @@ export default function ZenCorrector({
     const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
         setTextValue(event.target.value); // Update the state as the user types
     };
+
+    // Keybindings for the buttons
+    useEffect(() => {
+        const handleKeyDown = async (event: KeyboardEvent) => {
+            if (event.altKey && event.key === "ArrowLeft") {
+                await onMoveToPreviousAction();
+            }
+            if (event.altKey && event.key === "ArrowRight") {
+                await onMoveToNextAction();
+            }
+            if (event.altKey && event.key === "a") {
+                await approveAndSave();
+            }
+            if (event.altKey && (event.key === "r" || event.key === "c" || event.key === "x")) {
+                await reject();
+            }
+        };
+
+        // Attach event listener when the component mounts
+        window.addEventListener("keydown", handleKeyDown);
+
+        // Clean up the event listener when the component unmounts
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, []); // Empty dependency array ensures this runs only on mount and unmount
 
 
     function getBackgroundColour(paragraphData: Paragraph) {
