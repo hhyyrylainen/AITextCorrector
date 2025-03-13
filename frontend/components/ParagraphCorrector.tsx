@@ -1,11 +1,11 @@
 "use client";
 
-import {useEffect, useState, useRef} from "react";
+import {useEffect, useRef, useState} from "react";
 import {DiffEditor} from '@monaco-editor/react';
 import {editor} from "monaco-editor";
-import IStandaloneDiffEditor = editor.IStandaloneDiffEditor;
 
 import {CorrectionStatus, Paragraph} from "@/app/projectDefinitions";
+import IStandaloneDiffEditor = editor.IStandaloneDiffEditor;
 
 type ParagraphCorrectorProps = {
     paragraph: Paragraph;
@@ -208,7 +208,7 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
             });
 
         } catch (err) {
-            console.error("Error requesting approval of paragraph data:", err);
+            console.error("Error requesting reejection of paragraph data:", err);
             setError(err instanceof Error ? err.message : "Unknown error");
         } finally {
             setIsProcessing(false);
@@ -223,11 +223,7 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
     // Function to read the content of the "original" and "modified" models
     const handleGetEditedContent = () => {
         if (diffEditorRef.current) {
-            const modifiedText = diffEditorRef.current.getModel()?.modified?.getValue();
-
-            console.log(modifiedText);
-
-            return modifiedText;
+            return diffEditorRef.current.getModel()?.modified?.getValue();
         }
 
         return null;

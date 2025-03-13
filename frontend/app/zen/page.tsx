@@ -5,6 +5,7 @@ import {useSearchParams} from "next/navigation"; // Hook to access query paramet
 import Link from "next/link";
 
 import {CorrectionStatus, Paragraph} from "@/app/projectDefinitions";
+import ZenCorrector from "@components/ZenCorrector";
 
 function Page() {
     // Access the search parameters object
@@ -160,7 +161,7 @@ function Page() {
             <main className="flex flex-col gap-8 items-center">
 
                 {/* Spacing to allow scrolling to work */}
-                <div style={{height: "472px"}}/>
+                <div style={{height: "400px"}}/>
 
                 {/* Error message */}
                 {errorMessage && (
@@ -226,7 +227,7 @@ function Page() {
                 </div>
 
                 {/* Spacing to allow scrolling to work */}
-                <div style={{height: "472px"}}/>
+                <div style={{height: "400px"}}/>
             </main>
         </div>
     );
