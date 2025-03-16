@@ -257,7 +257,8 @@ function Page() {
                                         </>
                                     ) : (
                                         <ZenCorrector paragraph={paragraph} onMoveToNextAction={handleMoveNext}
-                                                      onMoveToPreviousAction={handleMovePrevious}/>
+                                                      onMoveToPreviousAction={handleMovePrevious}
+                                                      disableButtons={processing}/>
                                     )}
                                 </div>
                             </>

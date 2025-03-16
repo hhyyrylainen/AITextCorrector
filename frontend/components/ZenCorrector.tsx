@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 
 import {DiffEditor} from '@monaco-editor/react';
 import {editor} from "monaco-editor";
@@ -12,13 +12,15 @@ type ZenCorrectorCorrectorProps = {
     paragraph: Paragraph;
     onMoveToNextAction: () => Promise<void>;
     onMoveToPreviousAction: () => Promise<void>;
+    disableButtons: boolean;
 };
 
 // A simple component for paragraph correction
 export default function ZenCorrector({
                                          paragraph,
                                          onMoveToNextAction,
-                                         onMoveToPreviousAction
+                                         onMoveToPreviousAction,
+                                         disableButtons
                                      }: ZenCorrectorCorrectorProps) {
 
     const [error, setError] = useState<string | null>(null);
@@ -76,7 +78,8 @@ export default function ZenCorrector({
         }
     }
 
-    async function approveAndSave() {
+    // Memoize approveAndSave function with useCallback
+    const approveAndSave = useCallback(async () => {
         setIsProcessing(true);
         try {
             let editedText = hasCorrectedText ? handleGetEditedContent() : textValue;
@@ -103,7 +106,7 @@ export default function ZenCorrector({
 
             // Done so move to next
             // This doesn't await to make things more responsive feeling
-            onMoveToNextAction().then(_ => {
+            onMoveToNextAction().then(function () {
             });
 
         } catch (err) {
@@ -112,9 +115,9 @@ export default function ZenCorrector({
         } finally {
             setIsProcessing(false);
         }
-    }
+    }, [hasCorrectedText, paragraph, textValue, onMoveToNextAction]);
 
-    async function reject() {
+    const reject = useCallback(async () => {
         setIsProcessing(true);
         try {
             const response = await fetch(
@@ -129,7 +132,7 @@ export default function ZenCorrector({
             setError(null); // Reset any previous errors
 
             // Discard data and move to next
-            onMoveToNextAction().then(_ => {
+            onMoveToNextAction().then(function () {
             });
 
         } catch (err) {
@@ -138,7 +141,7 @@ export default function ZenCorrector({
         } finally {
             setIsProcessing(false);
         }
-    }
+    }, [paragraph, onMoveToNextAction]);
 
     // Callback to capture the Monaco Diff Editor instance
     const handleEditorDidMount = (editor: IStandaloneDiffEditor) => {
@@ -205,7 +208,7 @@ export default function ZenCorrector({
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, []); // Empty dependency array ensures this runs only on mount and unmount
+    }, [onMoveToPreviousAction, onMoveToNextAction, approveAndSave, reject]);
 
 
     function getBackgroundColour(paragraphData: Paragraph) {
@@ -240,7 +243,8 @@ export default function ZenCorrector({
     if (paragraph.correctionStatus == CorrectionStatus.notGenerated) {
         return (
             <div className="bg-red-300 p-4 border rounded-md mt-1 w-full flex flex-col items-center">
-                <p>Zen editor doesn't support not generated status. The parent component should have handled this...</p>
+                <p>Zen editor doesn&apos;t support not generated status. The parent component should have handled
+                    this...</p>
             </div>
         );
     }
@@ -276,7 +280,7 @@ export default function ZenCorrector({
             ) : (
                 <>
                     <textarea
-                        disabled={isProcessing}
+                        disabled={isProcessing || disableButtons}
                         className="w-full p-2 border border-gray-300 rounded-md"
                         rows={4}
                         value={textValue}
@@ -289,14 +293,14 @@ export default function ZenCorrector({
             <div className={"flex flex-row justify-center"}>
 
                 <button
-                    disabled={isProcessing}
+                    disabled={isProcessing || disableButtons}
                     onClick={onMoveToPreviousAction}
                     className="mt-2 px-4 py-2 mx-1 bg-gray-400 text-white rounded-md hover:bg-gray-600">
-                    Previous (doesn't save)
+                    Previous (doesn&apos;t save)
                 </button>
 
                 <button
-                    disabled={isProcessing}
+                    disabled={isProcessing || disableButtons}
                     onClick={approveAndSave}
                     className="mt-2 px-4 py-2 mx-1 bg-green-600 text-white hover:bg-green-800 rounded-md  focus:ring-offset-2">
                     Approve
@@ -304,7 +308,7 @@ export default function ZenCorrector({
 
                 {hasCorrectedText &&
                     <button
-                        disabled={isProcessing}
+                        disabled={isProcessing || disableButtons}
                         onClick={reject}
                         className="mt-2 px-4 py-2 mx-1 bg-red-500 text-white hover:bg-red-700 rounded-md  focus:ring-offset-2">
                         Reject
@@ -312,14 +316,14 @@ export default function ZenCorrector({
                 }
 
                 <button
-                    disabled={isProcessing}
+                    disabled={isProcessing || disableButtons}
                     onClick={saveCorrection}
                     className="mt-2 px-4 py-2 mx-1 bg-blue-500 text-white rounded-md hover:bg-blue-600">
                     Save Correction
                 </button>
 
                 <button
-                    disabled={isProcessing}
+                    disabled={isProcessing || disableButtons}
                     onClick={onMoveToNextAction}
                     className="mt-2 px-4 py-2 mx-1 bg-gray-400 text-white rounded-md hover:bg-gray-600">
                     Next (skip)

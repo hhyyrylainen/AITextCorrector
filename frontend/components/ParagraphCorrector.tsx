@@ -17,7 +17,8 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
     const [loading, setLoading] = useState<boolean>(true);
     const [generating, setGenerating] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
-    const [isPolling, setIsPolling] = useState<boolean>(false); // Track polling state
+
+    // const [isPolling, setIsPolling] = useState<boolean>(false); // Track polling state
 
     // Add state to handle the textarea value
     const [textValue, setTextValue] = useState("");
@@ -257,7 +258,9 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
         let interval: NodeJS.Timeout | undefined;
 
         if (paragraphData?.correctionStatus === CorrectionStatus.notGenerated) {
-            setIsPolling(true);
+            // This probably doesn't need to keep track of polling status as this should unmount the callback
+            // automatically
+            // setIsPolling(true);
             interval = setInterval(async () => {
                 try {
                     const response = await fetch(
@@ -273,13 +276,13 @@ export default function ParagraphCorrector({paragraph}: ParagraphCorrectorProps)
                     if (updatedData.correctionStatus !== CorrectionStatus.notGenerated) {
                         setParagraphData(updatedData); // Apply the new state
                         clearInterval(interval); // Stop polling
-                        setIsPolling(false);
+                        // setIsPolling(false);
                     }
                 } catch (err) {
                     console.error("Error polling backend for updates:", err);
                     setError(err instanceof Error ? err.message : "Unknown error during polling");
                     clearInterval(interval); // Stop polling on error
-                    setIsPolling(false);
+                    // setIsPolling(false);
                 }
             }, 10000); // Poll every 10 seconds
         }

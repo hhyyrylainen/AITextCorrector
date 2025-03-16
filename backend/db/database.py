@@ -123,7 +123,7 @@ class Database:
                     await self._migrate_database(db, config)
 
             await db.commit()
-            print("Database loaded")
+            print("Database loaded by PID: " + str(os.getpid()))
 
     async def create_project(self, project: Project) -> int:
         """

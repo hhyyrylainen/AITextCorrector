@@ -1,4 +1,4 @@
-ALL: build-frontend
+ALL: build-and-run
 
 build-frontend:
 	cd frontend && npm run build
@@ -13,9 +13,12 @@ requirements:
 	(source .venv/bin/activate && cd backend && pip install -r requirements.txt)
 
 run-backend:
-	(source .venv/bin/activate && cd backend && uvicorn main:app --reload --timeout-keep-alive 160 --workers 1)
+	(source .venv/bin/activate && cd backend && PYTHONPATH='../' uvicorn main:app --reload --timeout-keep-alive 160 --workers 1)
 
-.PHONY: build-frontend run run-backend requirements frontend-dev-server
+# Needs to be interrupted when wanted to stop with CTRL+C
+build-and-run: build-frontend run-backend
+
+.PHONY: build-frontend run run-backend requirements frontend-dev-server build-and-run
 
 # ollama section
 
